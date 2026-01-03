@@ -12,8 +12,10 @@ export interface User {
   createdAt: Date;
 }
 
-export interface AuthState {
+export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }

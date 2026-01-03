@@ -1,173 +1,175 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserRole } from '@/types/auth';
-import { Shield, User, ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { TypewriterEffect } from '@/components/ui/TypewriterEffect';
+import { GlassCard } from '@/components/ui/GlassCard';
+
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, isLoading } = useAuth();
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRole) return;
-    
-    await login(email, password, selectedRole);
-    navigate('/dashboard');
-  };
+    setError(null);
+    setIsLoggingIn(true);
 
-  const handleDemoLogin = async (role: UserRole) => {
-    setSelectedRole(role);
-    const demoEmail = role === 'admin' ? 'admin@nexus.com' : 'employee@nexus.com';
-    await login(demoEmail, 'demo', role);
-    navigate('/dashboard');
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to login');
+      setIsLoggingIn(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-nexus-dark via-nexus-primary to-nexus-secondary">
-      {/* Background pattern */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-      
-      <div className="relative flex min-h-screen flex-col items-center justify-center p-4">
-        {/* Logo */}
-        <div className="mb-8 flex items-center gap-3 animate-fade-in">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-nexus-highlight shadow-glow">
-            <span className="text-xl font-bold text-nexus-dark">N</span>
-          </div>
-          <span className="text-3xl font-bold text-nexus-surface">NEXUS</span>
+    <div className="flex min-h-screen w-full">
+      {/* Left Side: Unchanged */}
+      <div className="hidden lg:flex w-1/2 flex-col justify-between bg-nexus-dark p-12 text-white relative overflow-hidden">
+        {/* ... (Previous visual content remains the same, assuming it's outside this block but I need to be careful with replace_file_content range if I don't select everything.
+             I will select the function body up to the return statement start to inject state, and then the button area.
+             Actually, better to replace the whole component to be safe given the distributed changes.)
+        */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-nexus-primary rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-nexus-secondary rounded-full blur-3xl"></div>
         </div>
 
-        <Card className="w-full max-w-md animate-slide-up border-0 shadow-2xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome Back</CardTitle>
-            <CardDescription>
-              Select your role to access the dashboard
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+              <span className="text-xl font-bold">N</span>
+            </div>
+            <span className="text-2xl font-bold tracking-tight">NEXUS ERP</span>
+          </div>
+        </div>
+
+        <div className="relative z-10 max-w-lg mb-20 space-y-6">
+          <h1 className="text-5xl font-bold leading-tight tracking-tight">
+            The Smart Way to <br />
+            <TypewriterEffect
+              words={["Manage Business", "Track Growth", "Empower Teams", "Scale Faster"]}
+              className="text-nexus-highlight"
+              cursorClassName="bg-nexus-highlight"
+            />
+          </h1>
+          <p className="text-lg text-nexus-light/80 leading-relaxed max-w-md">
+            Streamline your operations with our all-in-one platform.
+            Experience the future of enterprise resource planning today.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4 mt-8 pt-8 border-t border-white/10">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-nexus-highlight" />
+              <span className="text-sm font-medium text-white/90">Real-time Analytics</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-nexus-highlight" />
+              <span className="text-sm font-medium text-white/90">Inventory Management</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-nexus-highlight" />
+              <span className="text-sm font-medium text-white/90">HR Automation</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-nexus-highlight" />
+              <span className="text-sm font-medium text-white/90">Sales Tracking</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10 text-sm text-white/40">
+          © 2024 Nexus Enterprise. All rights reserved.
+        </div>
+      </div>
+
+      {/* Right Side - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background relative">
+        <div className="absolute inset-0 bg-nexus-surface/30 pointer-events-none"></div>
+
+        <GlassCard className="w-full max-w-md border-nexus-bg-tint/50 shadow-2xl relative z-10 bg-white/60 dark:bg-black/40 backdrop-blur-xl" hoverEffect={false}>
+          <CardHeader className="text-center space-y-2 pb-8">
+            <div className="lg:hidden flex justify-center mb-4">
+              <div className="h-12 w-12 rounded-xl bg-nexus-primary flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-nexus-primary/30">N</div>
+            </div>
+            <CardTitle className="text-3xl font-bold text-nexus-dark">Welcome Back</CardTitle>
+            <CardDescription className="text-base">
+              Securely access your dashboard
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Role Selection */}
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => setSelectedRole('admin')}
-                className={`group relative flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-all duration-200 ${
-                  selectedRole === 'admin'
-                    ? 'border-primary bg-primary/5 shadow-md'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                }`}
-              >
-                <div className={`flex h-14 w-14 items-center justify-center rounded-xl transition-colors ${
-                  selectedRole === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                  <Shield className="h-7 w-7" />
-                </div>
-                <div>
-                  <p className="font-semibold">Super Admin</p>
-                  <p className="text-xs text-muted-foreground">Full access</p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => setSelectedRole('employee')}
-                className={`group relative flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-all duration-200 ${
-                  selectedRole === 'employee'
-                    ? 'border-primary bg-primary/5 shadow-md'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                }`}
-              >
-                <div className={`flex h-14 w-14 items-center justify-center rounded-xl transition-colors ${
-                  selectedRole === 'employee' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                  <User className="h-7 w-7" />
-                </div>
-                <div>
-                  <p className="font-semibold">Employee</p>
-                  <p className="text-xs text-muted-foreground">Operator access</p>
-                </div>
-              </button>
-            </div>
+          <CardContent className="space-y-8 px-8 pb-8">
 
             {/* Login Form */}
-            {selectedRole && (
-              <form onSubmit={handleLogin} className="space-y-4 animate-slide-up">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder={selectedRole === 'admin' ? 'admin@nexus.com' : 'employee@nexus.com'}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+            <div className="space-y-5">
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-600 text-center">
+                  {error}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-xs font-medium uppercase tracking-wider text-muted-foreground/80 ml-1">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-11 bg-white/50 border-nexus-bg-tint/50 focus:border-nexus-primary focus:ring-nexus-primary/20 rounded-lg transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password" className="text-xs font-medium uppercase tracking-wider text-muted-foreground/80 ml-1">Password</Label>
+                  <a href="#" className="text-xs text-nexus-primary hover:text-nexus-dark font-medium transition-colors">Forgot?</a>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      Sign In
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </form>
-            )}
-
-            {/* Demo Login */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 bg-white/50 border-nexus-bg-tint/50 focus:border-nexus-primary focus:ring-nexus-primary/20 rounded-lg transition-all"
+                />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Quick Demo Access</span>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3">
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDemoLogin('admin')}
-                disabled={isLoading}
+                onClick={handleLogin}
+                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-nexus-primary to-nexus-secondary hover:from-nexus-dark hover:to-nexus-primary shadow-lg shadow-nexus-primary/25 rounded-lg transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:shadow-nexus-primary/20 mt-2"
+                disabled={isLoading || isLoggingIn}
               >
-                <Shield className="mr-2 h-4 w-4" />
-                Demo Admin
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDemoLogin('employee')}
-                disabled={isLoading}
-              >
-                <User className="mr-2 h-4 w-4" />
-                Demo Employee
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Authenticating...
+                  </>
+                ) : isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Initializing...
+                  </>
+                ) : (
+                  <>
+                    Sign In to Dashboard
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
+                )}
               </Button>
             </div>
+
           </CardContent>
-        </Card>
-
-        <p className="mt-6 text-sm text-nexus-light/60 animate-fade-in">
-          Integrated Business Management System
-        </p>
+        </GlassCard>
       </div>
     </div>
   );

@@ -16,7 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState } from 'react';
+
 
 const adminNavItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -35,10 +35,14 @@ const employeeNavItems = [
   { title: 'Earnings', url: '/earnings', icon: DollarSign },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  collapsed: boolean;
+  setCollapsed: (collapsed: boolean) => void;
+}
+
+export function AppSidebar({ collapsed, setCollapsed }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
 
   const navItems = user?.role === 'admin' ? adminNavItems : employeeNavItems;
 

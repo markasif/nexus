@@ -9,7 +9,7 @@ interface KPICardProps {
   change?: number;
   changeLabel?: string;
   icon: ReactNode;
-  variant?: 'default' | 'primary' | 'success' | 'warning';
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'destructive';
 }
 
 export function KPICard({
@@ -24,13 +24,15 @@ export function KPICard({
   const isNegative = change && change < 0;
 
   return (
-    <Card 
-      variant="kpi" 
+    <Card
+      variant="kpi"
       className={cn(
-        "animate-slide-up",
-        variant === 'primary' && "border-l-nexus-primary",
+        "animate-slide-up transition-all duration-300 ease-out hover:shadow-card-hover hover:-translate-y-1",
+        variant === 'primary' && "border-l-nexus-primary bg-nexus-surface/30",
         variant === 'success' && "border-l-success",
-        variant === 'warning' && "border-l-warning"
+        variant === 'warning' && "border-l-warning",
+        variant === 'destructive' && "border-l-destructive",
+        variant === 'default' && "hover:border-nexus-highlight/50"
       )}
     >
       <CardContent className="p-6">
