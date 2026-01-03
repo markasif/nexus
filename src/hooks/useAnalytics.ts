@@ -6,13 +6,25 @@ export interface RevenueData {
     revenue: number;
 }
 
+export interface DealsData {
+    month: string;
+    deals: number;
+}
+
+export interface CategoryData {
+    name: string;
+    value: number;
+}
+
 export interface PerformerData {
     id: string;
     name: string;
     deals: number;
     revenue: number;
-    trend: number; // Placeholder or calculated
+    trend: number;
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function useRevenueHistory() {
     const [data, setData] = useState<RevenueData[]>([]);
@@ -21,33 +33,33 @@ export function useRevenueHistory() {
     useEffect(() => {
         async function fetchRevenue() {
             try {
+                // Fetch completed orders from the last 6 months
+                const sixMonthsAgo = new Date();
+                sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
                 const { data: orders } = await supabase
                     .from('orders')
                     .select('amount, created_at')
+                    .eq('status', 'completed')
+                    .gte('created_at', sixMonthsAgo.toISOString())
                     .order('created_at', { ascending: true });
 
-                if (!orders) {
-                    setData([]);
-                    return;
-                }
-
-                // Group by Month
-                const grouped = orders.reduce((acc, order) => {
+                const grouped = (orders || []).reduce((acc, order) => {
                     const date = new Date(order.created_at);
                     const month = date.toLocaleString('default', { month: 'short' });
-
-                    if (!acc[month]) {
-                        acc[month] = 0;
-                    }
-                    acc[month] += Number(order.amount);
+                    acc[month] = (acc[month] || 0) + Number(order.amount);
                     return acc;
                 }, {} as Record<string, number>);
 
-                // Format for Recharts
+                // Ensure all relevant months are present (optional, but good for charts)
+                // For now, just mapping existing data
                 const chartData = Object.entries(grouped).map(([month, revenue]) => ({
                     month,
                     revenue,
                 }));
+
+                // Sort by month index if needed, but 'created_at' order usually handles it roughly
+                // Better to rely on the data returned order if we want chronological
 
                 setData(chartData);
             } catch (err) {
@@ -56,8 +68,93 @@ export function useRevenueHistory() {
                 setIsLoading(false);
             }
         }
-
         fetchRevenue();
+    }, []);
+
+    return { data, isLoading };
+}
+
+export function useMonthlyDeals() {
+    const [data, setData] = useState<DealsData[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchDeals() {
+            try {
+                const sixMonthsAgo = new Date();
+                sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+                const { data: orders } = await supabase
+                    .from('orders')
+                    .select('created_at')
+                    .eq('status', 'completed')
+                    .gte('created_at', sixMonthsAgo.toISOString())
+                    .order('created_at', { ascending: true });
+
+                const grouped = (orders || []).reduce((acc, order) => {
+                    const date = new Date(order.created_at);
+                    const month = date.toLocaleString('default', { month: 'short' });
+                    acc[month] = (acc[month] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>);
+
+                const chartData = Object.entries(grouped).map(([month, deals]) => ({
+                    month,
+                    deals,
+                }));
+
+                setData(chartData);
+            } catch (err) {
+                console.error("Failed to fetch monthly deals", err);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchDeals();
+    }, []);
+
+    return { data, isLoading };
+}
+
+export function useCategoryDistribution() {
+    const [data, setData] = useState<CategoryData[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchCategories() {
+            try {
+                const { data: items } = await supabase
+                    .from('inventory')
+                    .select('category, price, stock');
+
+                const grouped = (items || []).reduce((acc, item) => {
+                    const category = (item.category || 'Uncategorized').trim();
+                    // Ensure robust parsing considering Supabase might return numbers or strings
+                    const price = typeof item.price === 'string' ? parseFloat(item.price.replace(/,/g, '')) : Number(item.price);
+                    const stock = typeof item.stock === 'string' ? parseFloat(item.stock.replace(/,/g, '')) : Number(item.stock);
+
+                    if (isNaN(price) || isNaN(stock)) return acc;
+
+                    const value = price * stock;
+                    acc[category] = (acc[category] || 0) + value;
+                    return acc;
+                }, {} as Record<string, number>);
+
+                const chartData = Object.entries(grouped)
+                    .map(([name, value]) => ({
+                        name,
+                        value,
+                    }))
+                    .sort((a, b) => b.value - a.value); // Sort by value descending
+
+                setData(chartData);
+            } catch (err) {
+                console.error("Failed to fetch category distribution", err);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchCategories();
     }, []);
 
     return { data, isLoading };
@@ -77,10 +174,11 @@ export function useTopPerformers() {
             employee_id,
             profiles:employee_id (
               id,
-              name,
+              full_name,
               email
             )
-          `);
+          `)
+                    .eq('status', 'completed');
 
                 if (!orders) {
                     setPerformers([]);
@@ -90,22 +188,19 @@ export function useTopPerformers() {
                 const stats: Record<string, PerformerData> = {};
 
                 orders.forEach((order: any) => {
-                    if (!order.profiles) return; // Skip if no employee linked
+                    if (!order.profiles) return;
 
-                    const profile = order.profiles; // Since it's a join, might be an object or array depending on relation type (one-to-one/many)
-                    // Actually supabase returns single object for foreign key usually.
-
-                    // Defend against null profile or array
-                    const p = Array.isArray(profile) ? profile[0] : profile;
+                    // Handle single object from join
+                    const p = Array.isArray(order.profiles) ? order.profiles[0] : order.profiles;
                     if (!p) return;
 
                     if (!stats[p.id]) {
                         stats[p.id] = {
                             id: p.id,
-                            name: p.name || p.email?.split('@')[0] || "Unknown",
+                            name: p.full_name || p.email?.split('@')[0] || "Unknown",
                             deals: 0,
                             revenue: 0,
-                            trend: Math.floor(Math.random() * 20) - 5, // Mock trend for now
+                            trend: 0,
                         };
                     }
 
@@ -114,7 +209,7 @@ export function useTopPerformers() {
                 });
 
                 const sorted = Object.values(stats).sort((a, b) => b.revenue - a.revenue);
-                setPerformers(sorted.slice(0, 5)); // Top 5
+                setPerformers(sorted.slice(0, 5));
 
             } catch (err) {
                 console.error("Failed to fetch top performers", err);

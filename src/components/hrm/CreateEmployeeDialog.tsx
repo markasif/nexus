@@ -24,6 +24,7 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { useSettings } from "@/hooks/useSettings";
 
 // Create a *temporary* client just for creating users
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://tywjsjlibpxzoizdblhn.supabase.co';
@@ -41,6 +42,7 @@ export function CreateEmployeeDialog({ onEmployeeCreated }: { onEmployeeCreated?
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
+    const { settings } = useSettings();
 
     const [formData, setFormData] = useState({
         name: "",
@@ -93,7 +95,7 @@ export function CreateEmployeeDialog({ onEmployeeCreated }: { onEmployeeCreated?
                     department: formData.department,
                     job_title: formData.jobTitle,
                     base_salary: 50000,
-                    commission_rate: 5
+                    commission_rate: settings.default_commission
                 });
 
             if (detailsError) console.warn("Details insert warning:", detailsError);

@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  avatar_url?: string;
   baseSalary?: number;
   commissionPercent?: number;
   status: 'active' | 'inactive';
@@ -18,4 +19,5 @@ export interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }

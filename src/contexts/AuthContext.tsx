@@ -99,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: data.full_name || email?.split("@")[0] || "User",
           role: (data.role as UserRole) || 'employee',
           status: (data.status as 'active' | 'inactive') || 'active',
+          avatar_url: data.avatar_url,
           createdAt: data.created_at ? new Date(data.created_at) : new Date(),
         });
       }
@@ -164,8 +165,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchProfile(user.id, user.email);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshProfile, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

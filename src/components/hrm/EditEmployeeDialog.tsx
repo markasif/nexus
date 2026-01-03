@@ -16,7 +16,9 @@ import {
     Shield,
     Briefcase,
     Building,
-    Check
+    Check,
+    DollarSign,
+    TrendingUp
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
@@ -37,7 +39,8 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onEmployeeUpd
         role: "employee",
         department: "",
         jobTitle: "",
-        baseSalary: 0
+        baseSalary: 0,
+        commissionRate: 0
     });
 
     useEffect(() => {
@@ -47,7 +50,8 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onEmployeeUpd
                 role: employee.role || "employee",
                 department: employee.details?.department || "",
                 jobTitle: employee.details?.job_title || "",
-                baseSalary: employee.details?.base_salary || 0
+                baseSalary: employee.details?.base_salary || 0,
+                commissionRate: employee.details?.commission_rate || 0
             });
         }
     }, [employee]);
@@ -76,7 +80,8 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onEmployeeUpd
                     id: employee.id,
                     department: formData.department,
                     job_title: formData.jobTitle,
-                    base_salary: formData.baseSalary
+                    base_salary: formData.baseSalary,
+                    commission_rate: formData.commissionRate
                 });
 
             if (detailsError) throw detailsError;
@@ -184,17 +189,31 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onEmployeeUpd
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-salary" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-                            <Briefcase className="h-3.5 w-3.5 text-nexus-primary" /> Base Salary ($)
-                        </Label>
-                        <Input
-                            id="edit-salary"
-                            type="number"
-                            value={formData.baseSalary}
-                            onChange={(e) => setFormData({ ...formData, baseSalary: Number(e.target.value) })}
-                            className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
-                        />
+                    <div className="grid grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-salary" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                <DollarSign className="h-3.5 w-3.5 text-nexus-primary" /> Base Salary ($)
+                            </Label>
+                            <Input
+                                id="edit-salary"
+                                type="number"
+                                value={formData.baseSalary}
+                                onChange={(e) => setFormData({ ...formData, baseSalary: Number(e.target.value) })}
+                                className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-commission" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                <TrendingUp className="h-3.5 w-3.5 text-nexus-primary" /> Commission (%)
+                            </Label>
+                            <Input
+                                id="edit-commission"
+                                type="number"
+                                value={formData.commissionRate}
+                                onChange={(e) => setFormData({ ...formData, commissionRate: Number(e.target.value) })}
+                                className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                            />
+                        </div>
                     </div>
 
                     <DialogFooter className="pt-6 border-t border-gray-100 flex gap-3">
@@ -206,6 +225,6 @@ export function EditEmployeeDialog({ employee, open, onOpenChange, onEmployeeUpd
                     </DialogFooter>
                 </form>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

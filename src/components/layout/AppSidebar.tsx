@@ -16,7 +16,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-
+import { useSettings } from '@/hooks/useSettings';
+import { ProfileDialog } from '@/components/profile/ProfileDialog';
 
 const adminNavItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -43,6 +44,7 @@ interface AppSidebarProps {
 export function AppSidebar({ collapsed, setCollapsed }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { settings } = useSettings();
 
   const navItems = user?.role === 'admin' ? adminNavItems : employeeNavItems;
 
@@ -57,16 +59,29 @@ export function AppSidebar({ collapsed, setCollapsed }: AppSidebarProps) {
         {/* Header */}
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
           {!collapsed && (
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-                <span className="text-sm font-bold text-sidebar-primary-foreground">N</span>
+            <Link to="/dashboard" className="flex items-center gap-2 overflow-hidden">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
+                <span className="text-sm font-bold text-sidebar-primary-foreground">
+                  {settings.company_name.charAt(0).toUpperCase()}
+                </span>
               </div>
-              <span className="text-lg font-bold text-sidebar-foreground">NEXUS</span>
+              <div className="flex flex-col overflow-hidden">
+                <span className="truncate text-lg font-bold text-sidebar-foreground leading-tight">
+                  {settings.company_name}
+                </span>
+                {settings.tax_id && (
+                  <span className="truncate text-xs text-sidebar-foreground/60">
+                    Tax ID: {settings.tax_id}
+                  </span>
+                )}
+              </div>
             </Link>
           )}
           {collapsed && (
             <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-              <span className="text-sm font-bold text-sidebar-primary-foreground">N</span>
+              <span className="text-sm font-bold text-sidebar-primary-foreground">
+                {settings.company_name.charAt(0).toUpperCase()}
+              </span>
             </div>
           )}
         </div>
@@ -96,15 +111,21 @@ export function AppSidebar({ collapsed, setCollapsed }: AppSidebarProps) {
         {/* User section */}
         <div className="border-t border-sidebar-border p-3">
           {!collapsed && user && (
-            <div className="mb-3 flex items-center gap-3 rounded-lg bg-sidebar-accent/30 px-3 py-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
-                {user.name.charAt(0)}
+            <ProfileDialog>
+              <div className="mb-3 flex items-center gap-3 rounded-lg bg-sidebar-accent/30 px-3 py-2 cursor-pointer hover:bg-sidebar-accent/50 transition-colors">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground overflow-hidden">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.name} className="h-full w-full object-cover" />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <p className="truncate text-sm font-medium text-sidebar-foreground">{user.name}</p>
+                  <p className="truncate text-xs capitalize text-sidebar-foreground/60">{user.role}</p>
+                </div>
               </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-medium text-sidebar-foreground">{user.name}</p>
-                <p className="truncate text-xs capitalize text-sidebar-foreground/60">{user.role}</p>
-              </div>
-            </div>
+            </ProfileDialog>
           )}
           <Button
             variant="ghost"

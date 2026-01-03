@@ -5,9 +5,144 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Shield, Bell, Database } from 'lucide-react';
+import { Building2, Shield, Bell, Database, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const CURRENCIES = [
+  { code: 'USD', label: 'US Dollar ($)' },
+  { code: 'EUR', label: 'Euro (€)' },
+  { code: 'GBP', label: 'British Pound (£)' },
+  { code: 'INR', label: 'Indian Rupee (₹)' },
+  { code: 'JPY', label: 'Japanese Yen (¥)' },
+  { code: 'AUD', label: 'Australian Dollar (A$)' },
+  { code: 'CAD', label: 'Canadian Dollar (C$)' },
+];
 
 export default function Settings() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState({
+    id: '',
+    company_name: '',
+    company_email: '',
+    tax_id: '',
+    currency: 'USD',
+    low_stock_threshold: 5,
+    default_commission: 8,
+    audit_logging: true,
+  });
+
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('crm_settings')
+          .select('*')
+          .limit(1)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // Ignore 'No rows' error
+          console.error('Error fetching settings:', error);
+          toast.error('Failed to load settings');
+        }
+
+        if (data) {
+          setSettings({
+            id: data.id,
+            company_name: data.company_name || '',
+            company_email: data.company_email || '',
+            tax_id: data.tax_id || '',
+            currency: data.currency || 'USD',
+            low_stock_threshold: data.low_stock_threshold ?? 5,
+            default_commission: data.default_commission ?? 8,
+            audit_logging: data.audit_logging ?? true,
+          });
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSettings();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+
+      const payload = {
+        company_name: settings.company_name,
+        company_email: settings.company_email,
+        tax_id: settings.tax_id,
+        currency: settings.currency,
+        low_stock_threshold: Number(settings.low_stock_threshold),
+        default_commission: Number(settings.default_commission),
+        audit_logging: settings.audit_logging,
+        updated_at: new Date().toISOString(),
+      };
+
+      // If ID exists, update. If not, insert (upsert handles both if PK provided, but here we might not have ID yet)
+      // Actually, since it's a singleton pattern, we can treat the table as having one row.
+      // But upsert needs a constraint.
+
+      let error;
+      if (settings.id) {
+        const { error: updateError, data } = await supabase
+          .from('crm_settings')
+          .update(payload)
+          .eq('id', settings.id)
+          .select(); // Return the updated row to verify
+
+        if (!updateError && (!data || data.length === 0)) {
+          throw new Error('No settings were updated. Please check your permissions.');
+        }
+        error = updateError;
+      } else {
+        const { error: insertError, data } = await supabase
+          .from('crm_settings')
+          .insert([payload])
+          .select();
+
+        if (!insertError && (!data || data.length === 0)) {
+          throw new Error('Failed to create settings. Please check your permissions.');
+        }
+        error = insertError;
+      }
+
+      if (error) throw error;
+      toast.success('Settings saved successfully');
+
+      // Dispatch event to update other components immediately
+      window.dispatchEvent(new Event('settings-updated'));
+
+      // Refresh to get ID if it was a new insert
+      const { data } = await supabase.from('crm_settings').select('id').limit(1).single();
+      if (data) setSettings(prev => ({ ...prev, id: data.id }));
+
+    } catch (err: any) {
+      console.error('Error saving settings:', err);
+      toast.error(err.message || 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChange = (field: string, value: string | number | boolean) => {
+    setSettings((prev) => ({ ...prev, [field]: value }));
+  };
+
   return (
     <DashboardLayout requireAdmin>
       <div className="space-y-8">
@@ -44,27 +179,68 @@ export default function Settings() {
                 <CardDescription>Update your company details and branding</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="company-name">Company Name</Label>
-                    <Input id="company-name" defaultValue="NEXUS Corp" />
+                {loading ? (
+                  <div className="flex justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company-email">Company Email</Label>
-                    <Input id="company-email" type="email" defaultValue="contact@nexus.com" />
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="tax-id">Tax ID</Label>
-                    <Input id="tax-id" defaultValue="XX-XXXXXXX" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Input id="currency" defaultValue="USD" />
-                  </div>
-                </div>
-                <Button>Save Changes</Button>
+                ) : (
+                  <>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="company-name">Company Name</Label>
+                        <Input
+                          id="company-name"
+                          value={settings.company_name}
+                          onChange={(e) => handleChange('company_name', e.target.value)}
+                          placeholder="Enter company name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="company-email">Company Email</Label>
+                        <Input
+                          id="company-email"
+                          type="email"
+                          value={settings.company_email}
+                          onChange={(e) => handleChange('company_email', e.target.value)}
+                          placeholder="contact@example.com"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="tax-id">Tax ID</Label>
+                        <Input
+                          id="tax-id"
+                          value={settings.tax_id}
+                          onChange={(e) => handleChange('tax_id', e.target.value)}
+                          placeholder="XX-XXXXXXX"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="currency">Currency</Label>
+                        <Select
+                          value={settings.currency}
+                          onValueChange={(value) => handleChange('currency', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CURRENCIES.map((c) => (
+                              <SelectItem key={c.code} value={c.code}>
+                                {c.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <Button onClick={handleSave} disabled={saving}>
+                      {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {saving ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -155,11 +331,21 @@ export default function Settings() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="low-stock">Low Stock Threshold</Label>
-                    <Input id="low-stock" type="number" defaultValue="5" />
+                    <Input
+                      id="low-stock"
+                      type="number"
+                      value={settings.low_stock_threshold}
+                      onChange={(e) => handleChange('low_stock_threshold', e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="commission-default">Default Commission %</Label>
-                    <Input id="commission-default" type="number" defaultValue="8" />
+                    <Input
+                      id="commission-default"
+                      type="number"
+                      value={settings.default_commission}
+                      onChange={(e) => handleChange('default_commission', e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-4">
@@ -169,9 +355,15 @@ export default function Settings() {
                       Log all inventory movements and changes
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch
+                    checked={settings.audit_logging}
+                    onCheckedChange={(checked) => handleChange('audit_logging', checked)}
+                  />
                 </div>
-                <Button>Save Changes</Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
