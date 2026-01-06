@@ -2,7 +2,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Plus, Sparkles } from 'lucide-react';
 
-export function WelcomeBanner() {
+interface WelcomeBannerProps {
+    onViewReports?: () => void;
+    onNewAction?: () => void;
+}
+
+export function WelcomeBanner({ onViewReports, onNewAction }: WelcomeBannerProps) {
     const { user } = useAuth();
     const date = new Date().toLocaleDateString('en-US', {
         weekday: 'long',
@@ -31,10 +36,17 @@ export function WelcomeBanner() {
                 </div>
 
                 <div className="flex gap-3">
-                    <Button variant="secondary" className="bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-md">
+                    <Button
+                        variant="secondary"
+                        className="bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-md"
+                        onClick={onViewReports}
+                    >
                         View Reports
                     </Button>
-                    <Button className="bg-white text-nexus-primary hover:bg-nexus-light shadow-lg">
+                    <Button
+                        className="bg-white text-nexus-primary hover:bg-nexus-light shadow-lg"
+                        onClick={onNewAction}
+                    >
                         <Plus className="mr-2 h-4 w-4" />
                         New Action
                     </Button>

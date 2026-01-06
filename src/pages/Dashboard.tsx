@@ -4,7 +4,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { QuickActionCard } from '@/components/dashboard/QuickActionCard';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
-import { EmployeeRanking } from '@/components/dashboard/EmployeeRanking';
+import { EmployeeAttendanceStatus } from '@/components/dashboard/EmployeeAttendanceStatus';
 import { AttendanceWidget } from '@/components/dashboard/AttendanceWidget';
 import { EarningsWidget } from '@/components/dashboard/EarningsWidget';
 import { WelcomeBanner } from '@/components/dashboard/WelcomeBanner';
@@ -19,16 +19,32 @@ import {
   TrendingUp,
   Search,
   Calendar as CalendarIcon,
+  Zap,
 } from 'lucide-react';
 
 
+import { useState } from 'react';
+import { ReportsDialog } from '@/components/dashboard/ReportsDialog';
+import { SystemActionsDialog } from '@/components/dashboard/SystemActionsDialog';
+import { AdminAnnouncementsWidget } from '@/components/dashboard/AdminAnnouncementsWidget';
+import { TaskListWidget } from '@/components/dashboard/TaskListWidget';
+import { AnnouncementsWidget } from '@/components/dashboard/AnnouncementsWidget';
+import { RequestLeaveDialog } from '@/components/dashboard/RequestLeaveDialog';
+import { MyLeaveHistory } from '@/components/dashboard/MyLeaveHistory';
+import { MyLeadsWidget } from '@/components/dashboard/MyLeadsWidget';
+
 function AdminDashboard() {
   const stats = useDashboardStats();
+  const [showReports, setShowReports] = useState(false);
+  const [showActions, setShowActions] = useState(false);
 
   return (
     <div className="space-y-8">
       {/* Creative Header */}
-      <WelcomeBanner />
+      <WelcomeBanner
+        onViewReports={() => setShowReports(true)}
+        onNewAction={() => setShowActions(true)}
+      />
 
       {/* KPI Grid */}
       <ScrollReveal width="100%">
@@ -67,7 +83,14 @@ function AdminDashboard() {
           <div className="lg:col-span-2">
             <RevenueChart />
           </div>
-          <EmployeeRanking />
+          <EmployeeAttendanceStatus />
+        </div>
+      </ScrollReveal>
+
+      {/* Announcements Management Section */}
+      <ScrollReveal width="100%">
+        <div className="grid gap-6">
+          <AdminAnnouncementsWidget />
         </div>
       </ScrollReveal>
 
@@ -89,35 +112,38 @@ function AdminDashboard() {
               icon={<Target className="h-6 w-6" />}
               action="/crm"
               actionLabel="Open CRM"
-              highlight
             />
             <QuickActionCard
-              title="Add Stock"
-              description="Update inventory quantities"
-              icon={<Package className="h-6 w-6" />}
-              action="/inventory"
-              actionLabel="Inventory"
+              title="New Action"
+              description="System tasks & broadcasts"
+              icon={<Zap className="h-6 w-6" />}
+              action="#"
+              actionLabel="Run Action"
+              onClick={() => setShowActions(true)}
             />
             <QuickActionCard
               title="View Reports"
               description="Access analytics & insights"
               icon={<TrendingUp className="h-6 w-6" />}
-              action="/analytics"
-              actionLabel="Analytics"
+              action="#"
+              actionLabel="Generate"
+              onClick={() => setShowReports(true)}
+
             />
           </div>
         </div>
-      </ScrollReveal>
-    </div>
+      </ScrollReveal >
+
+      <ReportsDialog open={showReports} onOpenChange={setShowReports} />
+      <SystemActionsDialog open={showActions} onOpenChange={setShowActions} />
+    </div >
   );
 }
 
 
 
 
-import { RequestLeaveDialog } from '@/components/dashboard/RequestLeaveDialog';
-import { MyLeaveHistory } from '@/components/dashboard/MyLeaveHistory';
-import { useState } from 'react';
+
 
 function EmployeeDashboard() {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -137,14 +163,21 @@ function EmployeeDashboard() {
 
       {/* Main Grid */}
       <ScrollReveal width="100%">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            <AttendanceWidget />
-            <EarningsWidget />
-          </div>
-          <div className="space-y-6">
-            <MyLeaveHistory />
-          </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <AttendanceWidget />
+          <EarningsWidget />
+          <MyLeaveHistory />
+        </div>
+
+        {/* Leads Section - High Priority */}
+        <div className="mt-8">
+          <MyLeadsWidget />
+        </div>
+
+        {/* Tasks & Announcements Grid */}
+        <div className="grid gap-6 md:grid-cols-2 mt-8">
+          <TaskListWidget />
+          <AnnouncementsWidget />
         </div>
       </ScrollReveal>
 
@@ -153,16 +186,15 @@ function EmployeeDashboard() {
         <div>
           <h2 className="mb-4 text-xl font-semibold">Quick Actions</h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div onClick={() => setShowLeaveDialog(true)}>
-              <QuickActionCard
-                title="Request Leave"
-                description="Submit time off request"
-                icon={<CalendarIcon className="h-6 w-6" />}
-                action="#"
-                actionLabel="Request"
-                highlight
-              />
-            </div>
+            <QuickActionCard
+              title="Request Leave"
+              description="Submit time off request"
+              icon={<CalendarIcon className="h-6 w-6" />}
+              action="#"
+              actionLabel="Request"
+              highlight
+              onClick={() => setShowLeaveDialog(true)}
+            />
             <QuickActionCard
               title="My Leads"
               description="Manage your assigned leads"

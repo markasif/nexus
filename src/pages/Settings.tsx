@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ScrollReveal } from '@/components/ui/ScrollReveal';
 
 const CURRENCIES = [
   { code: 'USD', label: 'US Dollar ($)' },
@@ -147,228 +148,224 @@ export default function Settings() {
     <DashboardLayout requireAdmin>
       <div className="space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Manage system configuration and preferences</p>
-        </div>
+        <ScrollReveal width="100%">
+          <div>
+            <h1 className="text-3xl font-bold">Settings</h1>
+            <p className="text-muted-foreground">Manage system configuration and preferences</p>
+          </div>
+        </ScrollReveal>
 
-        <Tabs defaultValue="company" className="space-y-6">
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="company" className="data-[state=active]:bg-card">
-              <Building2 className="mr-2 h-4 w-4" />
-              Company
-            </TabsTrigger>
-            <TabsTrigger value="security" className="data-[state=active]:bg-card">
-              <Shield className="mr-2 h-4 w-4" />
-              Security
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="data-[state=active]:bg-card">
-              <Bell className="mr-2 h-4 w-4" />
-              Notifications
-            </TabsTrigger>
-            <TabsTrigger value="system" className="data-[state=active]:bg-card">
-              <Database className="mr-2 h-4 w-4" />
-              System
-            </TabsTrigger>
-          </TabsList>
+        <ScrollReveal width="100%">
+          <Tabs defaultValue="company" className="space-y-6">
+            <TabsList className="bg-muted/50">
+              <TabsTrigger value="company" className="data-[state=active]:bg-card">
+                <Building2 className="mr-2 h-4 w-4" />
+                Company
+              </TabsTrigger>
+              <TabsTrigger value="security" className="data-[state=active]:bg-card">
+                <Shield className="mr-2 h-4 w-4" />
+                Security
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="data-[state=active]:bg-card">
+                <Bell className="mr-2 h-4 w-4" />
+                Notifications
+              </TabsTrigger>
+              <TabsTrigger value="system" className="data-[state=active]:bg-card">
+                <Database className="mr-2 h-4 w-4" />
+                System
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="company">
-            <Card>
-              <CardHeader>
-                <CardTitle>Company Information</CardTitle>
-                <CardDescription>Update your company details and branding</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {loading ? (
-                  <div className="flex justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="company-name">Company Name</Label>
-                        <Input
-                          id="company-name"
-                          value={settings.company_name}
-                          onChange={(e) => handleChange('company_name', e.target.value)}
-                          placeholder="Enter company name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="company-email">Company Email</Label>
-                        <Input
-                          id="company-email"
-                          type="email"
-                          value={settings.company_email}
-                          onChange={(e) => handleChange('company_email', e.target.value)}
-                          placeholder="contact@example.com"
-                        />
-                      </div>
+            <TabsContent value="company">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Company Information</CardTitle>
+                  <CardDescription>Update your company details and branding</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {loading ? (
+                    <div className="flex justify-center p-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="tax-id">Tax ID</Label>
-                        <Input
-                          id="tax-id"
-                          value={settings.tax_id}
-                          onChange={(e) => handleChange('tax_id', e.target.value)}
-                          placeholder="XX-XXXXXXX"
-                        />
+                  ) : (
+                    <>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="company-name">Company Name</Label>
+                          <Input
+                            id="company-name"
+                            value={settings.company_name}
+                            onChange={(e) => handleChange('company_name', e.target.value)}
+                            placeholder="Enter company name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="company-email">Company Email</Label>
+                          <Input
+                            id="company-email"
+                            type="email"
+                            value={settings.company_email}
+                            onChange={(e) => handleChange('company_email', e.target.value)}
+                            placeholder="contact@example.com"
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="currency">Currency</Label>
-                        <Select
-                          value={settings.currency}
-                          onValueChange={(value) => handleChange('currency', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CURRENCIES.map((c) => (
-                              <SelectItem key={c.code} value={c.code}>
-                                {c.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="tax-id">Tax ID</Label>
+                          <Input
+                            id="tax-id"
+                            value={settings.tax_id}
+                            onChange={(e) => handleChange('tax_id', e.target.value)}
+                            placeholder="XX-XXXXXXX"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="currency">Currency</Label>
+                          <Select
+                            value={settings.currency}
+                            onValueChange={(value) => handleChange('currency', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CURRENCIES.map((c) => (
+                                <SelectItem key={c.code} value={c.code}>
+                                  {c.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
+                      <Button onClick={handleSave} disabled={saving}>
+                        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="security">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Security Settings</CardTitle>
+                  <CardDescription>Configure security and access controls</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <p className="font-medium">Two-Factor Authentication</p>
+                      <p className="text-sm text-muted-foreground">
+                        Require 2FA for all admin accounts
+                      </p>
                     </div>
-                    <Button onClick={handleSave} disabled={saving}>
-                      {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {saving ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <p className="font-medium">Session Timeout</p>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically log out inactive users after 30 minutes
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <p className="font-medium">IP Allowlist</p>
+                      <p className="text-sm text-muted-foreground">
+                        Restrict access to specific IP addresses
+                      </p>
+                    </div>
+                    <Switch />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="security">
-            <Card>
-              <CardHeader>
-                <CardTitle>Security Settings</CardTitle>
-                <CardDescription>Configure security and access controls</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">Two-Factor Authentication</p>
-                    <p className="text-sm text-muted-foreground">
-                      Require 2FA for all admin accounts
-                    </p>
+            <TabsContent value="notifications">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notification Preferences</CardTitle>
+                  <CardDescription>Choose what notifications you receive</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <p className="font-medium">Low Stock Alerts</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified when inventory falls below threshold
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
                   </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">Session Timeout</p>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically log out inactive users after 30 minutes
-                    </p>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <p className="font-medium">New Deal Notifications</p>
+                      <p className="text-sm text-muted-foreground">
+                        Receive alerts when deals are closed
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
                   </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">IP Allowlist</p>
-                    <p className="text-sm text-muted-foreground">
-                      Restrict access to specific IP addresses
-                    </p>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <p className="font-medium">Leave Requests</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified of pending leave requests
+                      </p>
+                    </div>
+                    <Switch defaultChecked />
                   </div>
-                  <Switch />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>Choose what notifications you receive</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">Low Stock Alerts</p>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when inventory falls below threshold
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">New Deal Notifications</p>
-                    <p className="text-sm text-muted-foreground">
-                      Receive alerts when deals are closed
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">Leave Requests</p>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified of pending leave requests
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <TabsContent value="system">
+              <Card>
+                <CardHeader>
+                  <CardTitle>System Configuration</CardTitle>
+                  <CardDescription>Advanced system settings</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="low-stock">Low Stock Threshold</Label>
+                      <Input
+                        id="low-stock"
+                        type="number"
+                        value={settings.low_stock_threshold}
+                        onChange={(e) => handleChange('low_stock_threshold', e.target.value)}
+                      />
+                    </div>
 
-          <TabsContent value="system">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Configuration</CardTitle>
-                <CardDescription>Advanced system settings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="low-stock">Low Stock Threshold</Label>
-                    <Input
-                      id="low-stock"
-                      type="number"
-                      value={settings.low_stock_threshold}
-                      onChange={(e) => handleChange('low_stock_threshold', e.target.value)}
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <p className="font-medium">Audit Logging</p>
+                      <p className="text-sm text-muted-foreground">
+                        Log all inventory movements and changes
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.audit_logging}
+                      onCheckedChange={(checked) => handleChange('audit_logging', checked)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="commission-default">Default Commission %</Label>
-                    <Input
-                      id="commission-default"
-                      type="number"
-                      value={settings.default_commission}
-                      onChange={(e) => handleChange('default_commission', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">Audit Logging</p>
-                    <p className="text-sm text-muted-foreground">
-                      Log all inventory movements and changes
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.audit_logging}
-                    onCheckedChange={(checked) => handleChange('audit_logging', checked)}
-                  />
-                </div>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </ScrollReveal>
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

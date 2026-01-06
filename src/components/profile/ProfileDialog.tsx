@@ -13,7 +13,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Loader2, Upload, User, Camera, Mail } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Upload, User, Camera, Mail, Lock, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ProfileDialogProps {
@@ -29,6 +30,10 @@ export function ProfileDialog({ children }: ProfileDialogProps) {
         email: '',
         role: '',
         avatarUrl: '',
+    });
+    const [securityData, setSecurityData] = useState({
+        newPassword: '',
+        confirmPassword: ''
     });
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +87,7 @@ export function ProfileDialog({ children }: ProfileDialogProps) {
             setIsLoading(true);
             if (!user) return;
 
+            // 1. Profile Update
             let avatarPath = formData.avatarUrl;
 
             // Handle File Upload if changed
@@ -116,6 +122,24 @@ export function ProfileDialog({ children }: ProfileDialogProps) {
                 .eq('id', user.id);
 
             if (updateError) throw updateError;
+
+            // 2. Security Update (Password)
+            if (securityData.newPassword) {
+                if (securityData.newPassword !== securityData.confirmPassword) {
+                    throw new Error("Passwords do not match");
+                }
+                if (securityData.newPassword.length < 6) {
+                    throw new Error("Password must be at least 6 characters");
+                }
+
+                const { error: passwordError } = await supabase.auth.updateUser({
+                    password: securityData.newPassword
+                });
+
+                if (passwordError) throw passwordError;
+                toast.success('Password updated successfully');
+                setSecurityData({ newPassword: '', confirmPassword: '' });
+            }
 
             toast.success('Profile updated successfully');
 
@@ -155,90 +179,145 @@ export function ProfileDialog({ children }: ProfileDialogProps) {
                     </DialogHeader>
                 </div>
 
-                <div className="px-6 py-6 space-y-6 bg-background">
-                    {/* Avatar Section */}
-                    <div className="flex flex-col items-center gap-4 py-2">
-                        <div className="relative group">
-                            <div className="h-28 w-28 overflow-hidden rounded-full border-4 border-white shadow-xl bg-muted ring-2 ring-nexus-primary/20">
-                                {previewUrl ? (
-                                    <img src={previewUrl} alt="Avatar" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
-                                ) : (
-                                    <div className="flex h-full w-full items-center justify-center text-muted-foreground bg-gray-50">
-                                        <User className="h-14 w-14" />
+                <div className="bg-background">
+                    <Tabs defaultValue="general" className="w-full">
+                        <div className="px-6 pt-4">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="general">General Info</TabsTrigger>
+                                <TabsTrigger value="security">Security</TabsTrigger>
+                            </TabsList>
+                        </div>
+
+                        <TabsContent value="general" className="mt-0">
+                            <div className="px-6 py-6 space-y-6">
+                                {/* Avatar Section */}
+                                <div className="flex flex-col items-center gap-4 py-2">
+                                    <div className="relative group">
+                                        <div className="h-28 w-28 overflow-hidden rounded-full border-4 border-white shadow-xl bg-muted ring-2 ring-nexus-primary/20">
+                                            {previewUrl ? (
+                                                <img src={previewUrl} alt="Avatar" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center text-muted-foreground bg-gray-50">
+                                                    <User className="h-14 w-14" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full bg-nexus-primary text-white shadow-lg hover:bg-nexus-dark transition-all duration-300 transform hover:scale-110"
+                                            title="Change photo"
+                                        >
+                                            <Camera className="h-4 w-4" />
+                                        </button>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleFileChange}
+                                        />
                                     </div>
-                                )}
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                                        Profile Picture
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-5">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fullName" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                            <User className="h-3.5 w-3.5 text-nexus-primary" /> Full Name
+                                        </Label>
+                                        <Input
+                                            id="fullName"
+                                            value={formData.fullName}
+                                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                                            placeholder="Your Name"
+                                            className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                            <Mail className="h-3.5 w-3.5 text-nexus-primary" /> Email Address
+                                        </Label>
+                                        <Input
+                                            id="email"
+                                            value={formData.email}
+                                            disabled
+                                            className="h-11 border-gray-200 bg-gray-100 text-muted-foreground/70 font-medium cursor-not-allowed"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-5">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="role" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                            <Upload className="h-3.5 w-3.5 text-nexus-primary" /> Access Role
+                                        </Label>
+                                        <Input
+                                            id="role"
+                                            value={formData.role ?? 'Employee'}
+                                            disabled
+                                            className="h-11 border-gray-200 bg-gray-100 text-muted-foreground/70 font-medium cursor-not-allowed capitalize"
+                                        />
+                                    </div>
+                                    {/* Optional second column info or placeholder */}
+                                    <div className="space-y-2 opacity-50">
+                                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                            <Loader2 className="h-3.5 w-3.5 text-nexus-primary" /> Account Status
+                                        </Label>
+                                        <div className="h-11 flex items-center px-3 rounded-md border border-gray-200 bg-gray-100 text-success font-semibold text-sm">
+                                            Active
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full bg-nexus-primary text-white shadow-lg hover:bg-nexus-dark transition-all duration-300 transform hover:scale-110"
-                                title="Change photo"
-                            >
-                                <Camera className="h-4 w-4" />
-                            </button>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={handleFileChange}
-                            />
-                        </div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                            Profile Picture
-                        </p>
-                    </div>
+                        </TabsContent>
 
-                    <div className="grid grid-cols-2 gap-5">
-                        <div className="space-y-2">
-                            <Label htmlFor="fullName" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-                                <User className="h-3.5 w-3.5 text-nexus-primary" /> Full Name
-                            </Label>
-                            <Input
-                                id="fullName"
-                                value={formData.fullName}
-                                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                                placeholder="Your Name"
-                                className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-                                <Mail className="h-3.5 w-3.5 text-nexus-primary" /> Email Address
-                            </Label>
-                            <Input
-                                id="email"
-                                value={formData.email}
-                                disabled
-                                className="h-11 border-gray-200 bg-gray-100 text-muted-foreground/70 font-medium cursor-not-allowed"
-                            />
-                        </div>
-                    </div>
+                        <TabsContent value="security" className="mt-0">
+                            <div className="px-6 py-6 space-y-6">
+                                <div className="p-4 bg-nexus-soft/30 rounded-lg border border-nexus-primary/10">
+                                    <h4 className="flex items-center gap-2 font-semibold text-nexus-dark mb-2">
+                                        <Shield className="h-4 w-4 text-nexus-primary" /> Admin Security Zone
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        Update your password here. Use a strong password to keep your account secure.
+                                    </p>
+                                </div>
 
-                    <div className="grid grid-cols-2 gap-5">
-                        <div className="space-y-2">
-                            <Label htmlFor="role" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-                                <Upload className="h-3.5 w-3.5 text-nexus-primary" /> Access Role
-                            </Label>
-                            <Input
-                                id="role"
-                                value={formData.role ?? 'Employee'}
-                                disabled
-                                className="h-11 border-gray-200 bg-gray-100 text-muted-foreground/70 font-medium cursor-not-allowed capitalize"
-                            />
-                        </div>
-                        {/* Optional second column info or placeholder */}
-                        <div className="space-y-2 opacity-50">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-                                <Loader2 className="h-3.5 w-3.5 text-nexus-primary" /> Account Status
-                            </Label>
-                            <div className="h-11 flex items-center px-3 rounded-md border border-gray-200 bg-gray-100 text-success font-semibold text-sm">
-                                Active
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="newPassword" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                            <Lock className="h-3.5 w-3.5 text-nexus-primary" /> New Password
+                                        </Label>
+                                        <Input
+                                            id="newPassword"
+                                            type="password"
+                                            value={securityData.newPassword}
+                                            onChange={(e) => setSecurityData({ ...securityData, newPassword: e.target.value })}
+                                            placeholder="Enter new password (min. 6 chars)"
+                                            className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="confirmPassword" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                            <Lock className="h-3.5 w-3.5 text-nexus-primary" /> Confirm Password
+                                        </Label>
+                                        <Input
+                                            id="confirmPassword"
+                                            type="password"
+                                            value={securityData.confirmPassword}
+                                            onChange={(e) => setSecurityData({ ...securityData, confirmPassword: e.target.value })}
+                                            placeholder="Confirm new password"
+                                            className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium"
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        </TabsContent>
+                    </Tabs>
 
-                    <DialogFooter className="pt-6 border-t border-gray-100 flex gap-3">
+                    <DialogFooter className="px-6 py-6 pt-2 border-t border-gray-100 flex gap-3">
                         <Button variant="outline" onClick={() => setIsOpen(false)} className="h-11 px-6 border-gray-200 hover:bg-gray-50 hover:text-nexus-dark font-medium transition-all">
                             Cancel
                         </Button>

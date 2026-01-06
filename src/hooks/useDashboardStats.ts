@@ -37,7 +37,8 @@ export function useDashboardStats() {
 
                 // 3. Fetch Inventory Stats
                 // We need all inventory items to check stock levels
-                const { data: inventory } = await supabase.from('inventory').select('stock, low_stock_threshold');
+                // Fix: use 'low_stock' column based on other components
+                const { data: inventory } = await supabase.from('inventory').select('stock, low_stock');
 
                 const totalInventoryInfo = await supabase
                     .from('inventory')
@@ -47,7 +48,7 @@ export function useDashboardStats() {
 
                 // Calculate Low Stock
                 const lowStockCount = inventory?.filter(
-                    item => (item.stock || 0) <= (item.low_stock_threshold || 10)
+                    item => (item.stock || 0) <= (item.low_stock ?? 10)
                 ).length || 0;
 
                 setStats({

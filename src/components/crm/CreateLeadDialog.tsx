@@ -11,7 +11,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Loader2, User, Building2, Mail, Phone, DollarSign, UserPlus } from "lucide-react";
+import { Plus, Loader2, User, Building2, Mail, Phone, DollarSign, UserPlus, Globe, Package } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,7 +35,9 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
         email: "",
         phone: "",
         value: "",
-        status: "new"
+        status: "new",
+        source: "website",
+        product: ""
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -45,6 +54,8 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                     phone: formData.phone,
                     value: Number(formData.value) || 0,
                     status: formData.status,
+                    source: formData.source,
+                    product: formData.product || 'Other',
                     assigned_to: user?.role === 'employee' ? user.id : null
                 });
 
@@ -52,7 +63,7 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
 
             toast({ title: "Lead Created", description: "New lead has been added to the pipeline." });
             setOpen(false);
-            setFormData({ name: "", company: "", email: "", phone: "", value: "", status: "new" });
+            setFormData({ name: "", company: "", email: "", phone: "", value: "", status: "new", source: "website", product: "" });
             onLeadCreated();
 
         } catch (error: any) {
@@ -78,7 +89,7 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
 
                     <DialogHeader className="relative z-10">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 shadow-inner">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm shadow-inner">
                                 <UserPlus className="h-5 w-5 text-white" />
                             </div>
                             <span className="tracking-tight">New Lead</span>
@@ -146,18 +157,60 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                            <Label htmlFor="value" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                <DollarSign className="h-3.5 w-3.5 text-nexus-primary" /> Deal Value ($)
+                            </Label>
+                            <Input
+                                id="value"
+                                type="number"
+                                placeholder="0.00"
+                                value={formData.value}
+                                onChange={e => setFormData({ ...formData, value: e.target.value })}
+                                className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="source" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                                <Globe className="h-3.5 w-3.5 text-nexus-primary" /> Lead Source
+                            </Label>
+                            <Select value={formData.source} onValueChange={(value) => setFormData({ ...formData, source: value })}>
+                                <SelectTrigger className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white transition-all font-medium">
+                                    <SelectValue placeholder="Select Source" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="website">Website</SelectItem>
+                                    <SelectItem value="linkedin">LinkedIn</SelectItem>
+                                    <SelectItem value="referral">Referral</SelectItem>
+                                    <SelectItem value="cold-call">Cold Call</SelectItem>
+                                    <SelectItem value="ad">Advertisement</SelectItem>
+                                    <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
-                        <Label htmlFor="value" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-                            <DollarSign className="h-3.5 w-3.5 text-nexus-primary" /> Deal Value ($)
+                        <Label htmlFor="product" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                            <Package className="h-3.5 w-3.5 text-nexus-primary" /> Interested Product
                         </Label>
-                        <Input
-                            id="value"
-                            type="number"
-                            placeholder="0.00"
-                            value={formData.value}
-                            onChange={e => setFormData({ ...formData, value: e.target.value })}
-                            className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
-                        />
+                        <Select
+                            value={formData.product}
+                            onValueChange={(value) => setFormData({ ...formData, product: value })}
+                        >
+                            <SelectTrigger id="product" className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white transition-all font-medium">
+                                <SelectValue placeholder="Select product..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="CRM System">CRM System</SelectItem>
+                                <SelectItem value="ERP Solution">ERP Solution</SelectItem>
+                                <SelectItem value="Website Development">Website Development</SelectItem>
+                                <SelectItem value="Mobile App">Mobile App</SelectItem>
+                                <SelectItem value="SEO Service">SEO Service</SelectItem>
+                                <SelectItem value="Digital Marketing">Digital Marketing</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <DialogFooter className="pt-6 border-t border-gray-100 flex gap-3">

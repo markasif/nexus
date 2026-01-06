@@ -7,9 +7,9 @@ interface ScrollRevealProps {
     width?: "fit-content" | "100%";
 }
 
-export const ScrollReveal = ({ children, width = "fit-content" }: ScrollRevealProps) => {
+export const ScrollReveal = ({ children, width = "fit-content", className = "" }: ScrollRevealProps & { className?: string }) => {
     return (
-        <div style={{ position: "relative", width }}>
+        <div style={{ position: "relative", width }} className={className}>
             <motion.div
                 variants={{
                     hidden: { opacity: 0, y: 75 },
@@ -19,6 +19,7 @@ export const ScrollReveal = ({ children, width = "fit-content" }: ScrollRevealPr
                 whileInView="visible"
                 transition={{ duration: 0.5, delay: 0.25 }}
                 viewport={{ once: true }}
+                className="h-full"
             >
                 {children}
             </motion.div>

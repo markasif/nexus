@@ -1,24 +1,43 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp } from 'lucide-react';
+import { DollarSign, TrendingUp, Loader2 } from 'lucide-react';
+import { useEarnings } from '@/hooks/useEarnings';
 
 export function EarningsWidget() {
-  const baseSalary = 50000 / 12;
-  const commissionEarned = 2840;
-  const commissionPending = 1250;
-  const totalEarnings = baseSalary + commissionEarned;
+  const { stats, loading } = useEarnings();
+
+  if (loading) {
+    return (
+      <Card className="h-full flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </Card>
+    )
+  }
+
+  // Fallbacks if stats are empty (e.g. new user)
+  const baseSalary = stats.baseSalaryYTD || 0;
+  const commissionEarned = stats.commissionEarnedYTD || 0;
+  const commissionPending = stats.commissionPending || 0;
+  const totalEarnings = stats.totalEarnings || 0;
+  // Note: Total Earnings usually implies YTD in this context, or we can use thisMonthEarnings if the widget title says "This Month"
+  // The original widget had "This Month" badge but calculated totals. Let's stick to Totals for the big number, maybe clarify label.
+  // Actually, if it says "This Month" badge, maybe the big number should be this month? 
+  // Let's assume the user wants the "Card" to represent their financial status generally, but highlighted for current context.
+  // I will use Total YTD for the main big number as it's more impressive/useful usually, or clarify.
+  // The original code: totalEarnings = base + commission. 
+  // Let's use YTD for the big number.
 
   return (
-    <Card className="animate-slide-up">
+    <Card className="animate-slide-up h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg">My Earnings</CardTitle>
-        <Badge variant="nexus">This Month</Badge>
+        <Badge variant="nexus">YTD Overview</Badge>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
           <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-primary to-nexus-primary p-4 text-primary-foreground">
             <div>
-              <p className="text-sm opacity-80">Total Earnings</p>
+              <p className="text-sm opacity-80">Total Earnings (YTD)</p>
               <p className="text-3xl font-bold">${totalEarnings.toLocaleString()}</p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-foreground/20">
@@ -32,7 +51,7 @@ export function EarningsWidget() {
               <p className="text-xl font-semibold">${baseSalary.toLocaleString()}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground">Commission (8%)</p>
+              <p className="text-sm text-muted-foreground">Commission</p>
               <p className="text-xl font-semibold text-success">${commissionEarned.toLocaleString()}</p>
             </div>
           </div>
