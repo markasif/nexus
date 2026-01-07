@@ -125,9 +125,9 @@ export default function Earnings() {
                 <ScrollReveal width="100%">
                     <Tabs defaultValue="commissions" className="h-full space-y-6">
                         <div className="flex items-center justify-between">
-                            <TabsList className="grid w-[400px] grid-cols-2">
-                                <TabsTrigger value="commissions">Commissions</TabsTrigger>
-                                <TabsTrigger value="payslips">Payslips</TabsTrigger>
+                            <TabsList className="bg-white border w-full max-w-[400px] grid grid-cols-2">
+                                <TabsTrigger value="commissions" className="h-9">Commissions</TabsTrigger>
+                                <TabsTrigger value="payslips" className="h-9">Payslips</TabsTrigger>
                             </TabsList>
                         </div>
 

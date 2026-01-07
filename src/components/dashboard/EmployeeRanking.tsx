@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, Users } from 'lucide-react';
 import { useTopPerformers } from '@/hooks/useAnalytics';
 
@@ -8,8 +9,23 @@ export function EmployeeRanking() {
 
   if (isLoading) {
     return (
-      <Card className="animate-slide-up h-full flex items-center justify-center">
-        <p className="text-muted-foreground">Loading ranking...</p>
+      <Card className="animate-slide-up h-full">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-5 w-16" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center gap-4 p-3 border rounded-lg">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+              <Skeleton className="h-4 w-12" />
+            </div>
+          ))}
+        </CardContent>
       </Card>
     )
   }

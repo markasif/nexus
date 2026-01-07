@@ -31,19 +31,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
-// Define the interface locally or import it if available. 
-// Matching Inventory.tsx interface for consistency
-export interface InventoryItem {
-    sku: string;
-    name: string;
-    category: string;
-    price: number;
-    purchase_price: number;
-    stock: number;
-    lowStock: number;
-    status: 'in-stock' | 'low-stock' | 'out-of-stock';
-}
+import { InventoryItem } from '@/types/inventory';
 
 interface AddProductDialogProps {
     open: boolean;
@@ -51,6 +43,18 @@ interface AddProductDialogProps {
     onProductSaved: () => void;
     productToEdit?: InventoryItem | null;
 }
+
+const productSchema = z.object({
+    sku: z.string().min(1, "SKU is required"),
+    name: z.string().min(1, "Product name is required"),
+    category: z.string().min(1, "Category is required"),
+    price: z.coerce.number().min(0, "Price cannot be negative"),
+    purchasePrice: z.coerce.number().min(0, "Cost cannot be negative").optional().default(0),
+    stock: z.coerce.number().min(0, "Stock cannot be negative"),
+    lowStock: z.coerce.number().min(0, "Low stock level cannot be negative"),
+});
+
+type ProductFormValues = z.infer<typeof productSchema>;
 
 export function AddProductDialog({
     open,
@@ -61,107 +65,57 @@ export function AddProductDialog({
     const { settings } = useSettings();
     const [loading, setLoading] = useState(false);
 
-    // We need categories for the dropdown. 
-    // In a real app, these might come from a separate table or be passed in.
-    // For now, we'll hardcode common ones + what's in use, or just allow free text? 
-    // Inventory.tsx had: ['Electronics', 'Clothing', 'Accessories', 'Home']
     const textCategories = ['Electronics', 'Clothing', 'Accessories', 'Home', 'Office', 'Industrial', 'Hardware'];
 
-    const [formData, setFormData] = useState({
-        sku: "",
-        name: "",
-        category: "",
-        price: "",
-        purchasePrice: "",
-        stock: "",
-        lowStock: ""
+    const form = useForm<ProductFormValues>({
+        resolver: zodResolver(productSchema),
+        defaultValues: {
+            sku: "",
+            name: "",
+            category: "",
+            price: 0,
+            purchasePrice: 0,
+            stock: 0,
+            lowStock: settings.low_stock_threshold || 5
+        }
     });
-
-    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (open) {
             if (productToEdit) {
-                setFormData({
+                form.reset({
                     sku: productToEdit.sku,
                     name: productToEdit.name,
                     category: productToEdit.category,
-                    price: productToEdit.price.toString(),
-                    purchasePrice: (productToEdit.purchase_price || 0).toString(),
-                    stock: productToEdit.stock.toString(),
-                    lowStock: productToEdit.lowStock.toString()
+                    price: productToEdit.price,
+                    purchasePrice: productToEdit.purchase_price || 0,
+                    stock: productToEdit.stock,
+                    lowStock: productToEdit.lowStock
                 });
             } else {
-                // Reset for new product
-                setFormData({
+                form.reset({
                     sku: "",
                     name: "",
                     category: "",
-                    price: "",
-                    purchasePrice: "",
-                    stock: "",
-                    lowStock: settings.low_stock_threshold.toString()
+                    price: 0,
+                    purchasePrice: 0,
+                    stock: 0,
+                    lowStock: settings.low_stock_threshold || 5
                 });
             }
-            setErrors({});
         }
-    }, [open, productToEdit, settings.low_stock_threshold]);
+    }, [open, productToEdit, settings.low_stock_threshold, form]);
 
-    const validateForm = () => {
-        const newErrors: Record<string, string> = {};
-        if (!formData.sku.trim()) newErrors.sku = 'SKU is required';
-        if (!formData.name.trim()) newErrors.name = 'Product name is required';
-        if (!formData.category) newErrors.category = 'Category is required';
-
-        if (!formData.price) {
-            newErrors.price = 'Price is required';
-        } else if (parseFloat(formData.price) < 0) {
-            newErrors.price = 'Price cannot be negative';
-        }
-
-        if (formData.purchasePrice && parseFloat(formData.purchasePrice) < 0) {
-            newErrors.purchasePrice = 'Cost cannot be negative';
-        }
-
-        if (!formData.stock) {
-            newErrors.stock = 'Stock is required';
-        } else if (parseInt(formData.stock) < 0) {
-            newErrors.stock = 'Stock cannot be negative';
-        }
-
-        if (!formData.lowStock) {
-            newErrors.lowStock = 'Low stock level is required';
-        } else if (parseInt(formData.lowStock) < 0) {
-            newErrors.lowStock = 'Cannot be negative';
-        } else if (formData.stock && parseInt(formData.lowStock) >= parseInt(formData.stock)) {
-            // Warning but not blocking? Or blocking logic from Inventory.tsx
-            // Inventory.tsx had: if (newProduct.stock && parseInt(newProduct.lowStock) >= parseInt(newProduct.stock))
-            // It was blocking.
-            newErrors.lowStock = 'Low stock level must be less than current stock';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!validateForm()) return;
-
+    const handleSubmit = async (data: ProductFormValues) => {
         setLoading(true);
-
-        const stock = parseInt(formData.stock);
-        const lowStock = parseInt(formData.lowStock) || 0;
-
         const dbPayload = {
-            sku: formData.sku,
-            name: formData.name,
-            category: formData.category || 'Uncategorized',
-            price: parseFloat(formData.price),
-            purchase_price: parseFloat(formData.purchasePrice || '0'),
-            stock: stock,
-            low_stock: lowStock,
+            sku: data.sku,
+            name: data.name,
+            category: data.category,
+            price: data.price,
+            purchase_price: data.purchasePrice,
+            stock: data.stock,
+            low_stock: data.lowStock,
         };
 
         try {
@@ -213,7 +167,7 @@ export function AddProductDialog({
                     </DialogHeader>
                 </div>
 
-                <form onSubmit={handleSubmit} className="px-6 py-6 space-y-5 bg-background">
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="px-6 py-6 space-y-5 bg-background">
                     <div className="grid grid-cols-2 gap-5">
                         <div className="space-y-2">
                             <Label htmlFor="sku" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
@@ -221,13 +175,12 @@ export function AddProductDialog({
                             </Label>
                             <Input
                                 id="sku"
-                                value={formData.sku}
-                                onChange={e => setFormData({ ...formData, sku: e.target.value })}
-                                disabled={!!productToEdit}
                                 placeholder="PROD-001"
+                                disabled={!!productToEdit}
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40 disabled:opacity-70"
+                                {...form.register("sku")}
                             />
-                            {errors.sku && <p className="text-xs text-destructive font-medium">{errors.sku}</p>}
+                            {form.formState.errors.sku && <p className="text-xs text-destructive font-medium">{form.formState.errors.sku.message}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
@@ -235,12 +188,11 @@ export function AddProductDialog({
                             </Label>
                             <Input
                                 id="name"
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="e.g. Wireless Headphones"
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                                {...form.register("name")}
                             />
-                            {errors.name && <p className="text-xs text-destructive font-medium">{errors.name}</p>}
+                            {form.formState.errors.name && <p className="text-xs text-destructive font-medium">{form.formState.errors.name.message}</p>}
                         </div>
                     </div>
 
@@ -250,8 +202,8 @@ export function AddProductDialog({
                                 <Layers className="h-3.5 w-3.5 text-nexus-primary" /> Category
                             </Label>
                             <Select
-                                value={formData.category}
-                                onValueChange={(value) => setFormData({ ...formData, category: value })}
+                                value={form.watch("category") || ""}
+                                onValueChange={(value) => form.setValue("category", value)}
                             >
                                 <SelectTrigger className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium">
                                     <SelectValue placeholder="Select Category" />
@@ -262,7 +214,7 @@ export function AddProductDialog({
                                     ))}
                                 </SelectContent>
                             </Select>
-                            {errors.category && <p className="text-xs text-destructive font-medium">{errors.category}</p>}
+                            {form.formState.errors.category && <p className="text-xs text-destructive font-medium">{form.formState.errors.category.message}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="price" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
@@ -273,13 +225,13 @@ export function AddProductDialog({
                                 <Input
                                     id="price"
                                     type="number"
+                                    step="0.01"
                                     className="h-11 pl-7 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
-                                    value={formData.price}
-                                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                                     placeholder="0.00"
+                                    {...form.register("price")}
                                 />
                             </div>
-                            {errors.price && <p className="text-xs text-destructive font-medium">{errors.price}</p>}
+                            {form.formState.errors.price && <p className="text-xs text-destructive font-medium">{form.formState.errors.price.message}</p>}
                         </div>
                     </div>
 
@@ -292,13 +244,13 @@ export function AddProductDialog({
                             <Input
                                 id="purchasePrice"
                                 type="number"
+                                step="0.01"
                                 className="h-11 pl-7 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
-                                value={formData.purchasePrice}
-                                onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
                                 placeholder="0.00"
+                                {...form.register("purchasePrice")}
                             />
                         </div>
-                        {errors.purchasePrice && <p className="text-xs text-destructive font-medium">{errors.purchasePrice}</p>}
+                        {form.formState.errors.purchasePrice && <p className="text-xs text-destructive font-medium">{form.formState.errors.purchasePrice.message}</p>}
                     </div>
 
                     <div className="grid grid-cols-2 gap-5">
@@ -309,12 +261,11 @@ export function AddProductDialog({
                             <Input
                                 id="stock"
                                 type="number"
-                                value={formData.stock}
-                                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                                 placeholder="0"
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                                {...form.register("stock")}
                             />
-                            {errors.stock && <p className="text-xs text-destructive font-medium">{errors.stock}</p>}
+                            {form.formState.errors.stock && <p className="text-xs text-destructive font-medium">{form.formState.errors.stock.message}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="lowStock" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
@@ -323,12 +274,11 @@ export function AddProductDialog({
                             <Input
                                 id="lowStock"
                                 type="number"
-                                value={formData.lowStock}
-                                onChange={(e) => setFormData({ ...formData, lowStock: e.target.value })}
                                 placeholder="5"
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                                {...form.register("lowStock")}
                             />
-                            {errors.lowStock && <p className="text-xs text-destructive font-medium">{errors.lowStock}</p>}
+                            {form.formState.errors.lowStock && <p className="text-xs text-destructive font-medium">{form.formState.errors.lowStock.message}</p>}
                         </div>
                     </div>
 

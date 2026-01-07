@@ -175,9 +175,9 @@ export default function HRM() {
         </ScrollReveal>
 
         <Tabs defaultValue="employees" className="w-full">
-          <TabsList className="grid w-full max-w-[400px] grid-cols-2">
-            <TabsTrigger value="employees">All Employees</TabsTrigger>
-            <TabsTrigger value="leaves" className="relative">
+          <TabsList className="bg-white border w-full max-w-[400px] grid grid-cols-2">
+            <TabsTrigger value="employees" className="h-9">All Employees</TabsTrigger>
+            <TabsTrigger value="leaves" className="relative h-9">
               Leave Requests
               {stats.pendingLeaves > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">

@@ -61,14 +61,14 @@ export function SystemActionsDialog({ open, onOpenChange }: { open: boolean; onO
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl border-0 shadow-2xl p-0 gap-0 overflow-hidden rounded-xl">
-                <div className="relative bg-gradient-to-br from-purple-900 to-purple-700 px-6 py-6 text-white overflow-hidden shrink-0">
+                <div className="relative bg-gradient-to-br from-indigo-900 to-indigo-700 px-6 py-6 text-white overflow-hidden shrink-0">
                     <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
                     <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-20 w-20 rounded-full bg-black/20 blur-xl"></div>
                     <DialogHeader className="relative z-10">
                         <DialogTitle className="text-xl font-bold flex items-center gap-2">
                             <Zap className="h-5 w-5" /> Quick Actions
                         </DialogTitle>
-                        <DialogDescription className="text-purple-100/80">
+                        <DialogDescription className="text-indigo-100/80">
                             Perform system-wide administrative tasks.
                         </DialogDescription>
                     </DialogHeader>
@@ -78,10 +78,10 @@ export function SystemActionsDialog({ open, onOpenChange }: { open: boolean; onO
                     <Tabs defaultValue="broadcast" className="w-full">
                         <div className="px-6 pt-4 border-b">
                             <TabsList className="bg-transparent p-0 pb-1 h-auto gap-6">
-                                <TabsTrigger value="broadcast" className="data-[state=active]:border-purple-600 data-[state=active]:text-purple-600 border-b-2 border-transparent rounded-none px-0 pb-3 font-semibold text-slate-500">
+                                <TabsTrigger value="broadcast" className="data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 border-b-2 border-transparent rounded-none px-0 pb-3 font-semibold text-slate-500">
                                     Broadcast
                                 </TabsTrigger>
-                                <TabsTrigger value="maintenance" className="data-[state=active]:border-purple-600 data-[state=active]:text-purple-600 border-b-2 border-transparent rounded-none px-0 pb-3 font-semibold text-slate-500">
+                                <TabsTrigger value="maintenance" className="data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 border-b-2 border-transparent rounded-none px-0 pb-3 font-semibold text-slate-500">
                                     Maintenance
                                 </TabsTrigger>
                             </TabsList>
@@ -98,7 +98,7 @@ export function SystemActionsDialog({ open, onOpenChange }: { open: boolean; onO
                                 />
                                 <p className="text-xs text-muted-foreground">Will be visible on employee dashboard.</p>
                             </div>
-                            <Button onClick={handleBroadcast} disabled={loading || !announcement} className="w-full bg-purple-600 hover:bg-purple-700">
+                            <Button onClick={handleBroadcast} disabled={loading || !announcement} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200">
                                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Megaphone className="mr-2 h-4 w-4" />}
                                 Send Broadcast
                             </Button>

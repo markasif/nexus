@@ -49,8 +49,8 @@ export default function Login() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-8">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
-              <span className="text-xl font-bold">N</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-transparent">
+              <img src="/logo.png" alt="Nexus Logo" className="w-full h-full object-contain" />
             </div>
             <span className="text-2xl font-bold tracking-tight">NEXUS ERP</span>
           </div>
@@ -102,7 +102,7 @@ export default function Login() {
         <GlassCard className="w-full max-w-md border-nexus-bg-tint/50 shadow-2xl relative z-10 bg-white/60 dark:bg-black/40 backdrop-blur-xl" hoverEffect={false}>
           <CardHeader className="text-center space-y-2 pb-8">
             <div className="lg:hidden flex justify-center mb-4">
-              <div className="h-12 w-12 rounded-xl bg-nexus-primary flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-nexus-primary/30">N</div>
+              <img src="/logo.png" alt="Nexus Logo" className="h-12 w-12 rounded-xl shadow-lg shadow-nexus-primary/30" />
             </div>
             <CardTitle className="text-3xl font-bold text-nexus-dark">Welcome Back</CardTitle>
             <CardDescription className="text-base">

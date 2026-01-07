@@ -79,7 +79,7 @@ function AdminDashboard() {
 
       {/* Charts Row */}
       <ScrollReveal width="100%">
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <RevenueChart />
           </div>

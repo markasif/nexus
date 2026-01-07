@@ -3,22 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 
-export type Lead = {
-    id: string;
-    name: string;
-    company: string;
-    email: string;
-    phone: string;
-    value: number;
-    status: string;
-    assigned_to: string;
-    last_contact: string;
-    created_at?: string;
-    updated_at?: string;
-    product?: string;
-    notes?: string;
-    profiles?: { full_name: string; email: string }; // Joined assignee data
-};
+import { Lead } from '@/types/crm';
 
 export function useLeads() {
     const { user } = useAuth();
@@ -87,15 +72,23 @@ export function useLeads() {
             // 1. If moving to "Closed Won", we must confirm the order (generate Order record)
             // Stock is already deducted by triggers during negotiation, so this just creates the official Order.
             if (newStatus === 'closed-won') {
+                // Fetch the lead first to get the assigned employee
+                const { data: leadData } = await supabase
+                    .from('leads')
+                    .select('assigned_to')
+                    .eq('id', leadId)
+                    .single();
+
                 const { error: rpcError } = await supabase.rpc('confirm_lead_order', {
                     target_lead_id: leadId,
-                    output_employee_id: user?.id
+                    // Use the assigned employee ID if available, otherwise fallback to current user
+                    output_employee_id: leadData?.assigned_to || user?.id
                 });
                 if (rpcError) throw rpcError;
 
                 toast({
                     title: "Deal Won!",
-                    description: "Order has been created and finalized.",
+                    description: "Order has been created and finalized for the assigned agent.",
                     variant: "default",
                     className: "bg-green-500 text-white border-none"
                 });

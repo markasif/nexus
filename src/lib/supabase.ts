@@ -1,8 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// TODO: Move these to environment variables in production
-const SUPABASE_URL = 'https://tywjsjlibpxzoizdblhn.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5d2pzamxpYnB4em9pemRibGhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcyNDgzNDgsImV4cCI6MjA4MjgyNDM0OH0.Vg-F3YPdnlal5nLGbRJaOQ9m04oiG8_R2DXr53FUPUo';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

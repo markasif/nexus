@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useRevenueHistory } from '@/hooks/useAnalytics';
 
@@ -7,8 +8,13 @@ export function RevenueChart() {
 
   if (isLoading) {
     return (
-      <Card className="animate-slide-up h-full flex flex-col justify-center items-center">
-        <p className="text-muted-foreground">Loading chart...</p>
+      <Card className="animate-slide-up h-full flex flex-col">
+        <CardHeader>
+          <Skeleton className="h-6 w-40" />
+        </CardHeader>
+        <CardContent className="flex-1 min-h-0">
+          <Skeleton className="h-full w-full min-h-[300px] rounded-xl" />
+        </CardContent>
       </Card>
     );
   }

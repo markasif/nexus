@@ -22,6 +22,22 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const leadSchema = z.object({
+    name: z.string().min(1, "Contact name is required"),
+    company: z.string().optional(),
+    email: z.string().email("Invalid email address").optional().or(z.literal('')),
+    phone: z.string().optional(),
+    value: z.coerce.number().min(0).optional().default(0),
+    status: z.string().default("new"),
+    source: z.string().default("website"),
+    product: z.string().optional()
+});
+
+type LeadFormValues = z.infer<typeof leadSchema>;
 
 export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void }) {
     const { user } = useAuth();
@@ -29,33 +45,35 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    const [formData, setFormData] = useState({
-        name: "",
-        company: "",
-        email: "",
-        phone: "",
-        value: "",
-        status: "new",
-        source: "website",
-        product: ""
+    const form = useForm<LeadFormValues>({
+        resolver: zodResolver(leadSchema),
+        defaultValues: {
+            name: "",
+            company: "",
+            email: "",
+            phone: "",
+            value: 0,
+            status: "new",
+            source: "website",
+            product: ""
+        }
     });
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (data: LeadFormValues) => {
         setLoading(true);
 
         try {
             const { error } = await supabase
                 .from('leads')
                 .insert({
-                    name: formData.name,
-                    company: formData.company,
-                    email: formData.email,
-                    phone: formData.phone,
-                    value: Number(formData.value) || 0,
-                    status: formData.status,
-                    source: formData.source,
-                    product: formData.product || 'Other',
+                    name: data.name,
+                    company: data.company,
+                    email: data.email,
+                    phone: data.phone,
+                    value: data.value,
+                    status: data.status,
+                    source: data.source,
+                    product: data.product || 'Other',
                     assigned_to: user?.role === 'employee' ? user.id : null
                 });
 
@@ -63,7 +81,7 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
 
             toast({ title: "Lead Created", description: "New lead has been added to the pipeline." });
             setOpen(false);
-            setFormData({ name: "", company: "", email: "", phone: "", value: "", status: "new", source: "website", product: "" });
+            form.reset();
             onLeadCreated();
 
         } catch (error: any) {
@@ -100,7 +118,7 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                     </DialogHeader>
                 </div>
 
-                <form onSubmit={handleSubmit} className="px-6 py-6 space-y-5 bg-background">
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="px-6 py-6 space-y-5 bg-background">
                     <div className="grid grid-cols-2 gap-5">
                         <div className="space-y-2">
                             <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
@@ -108,12 +126,11 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                             </Label>
                             <Input
                                 id="name"
-                                required
                                 placeholder="e.g. John Doe"
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                                {...form.register("name")}
                             />
+                            {form.formState.errors.name && <p className="text-xs text-destructive font-medium">{form.formState.errors.name.message}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="company" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
@@ -122,9 +139,8 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                             <Input
                                 id="company"
                                 placeholder="e.g. Acme Corp"
-                                value={formData.company}
-                                onChange={e => setFormData({ ...formData, company: e.target.value })}
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                                {...form.register("company")}
                             />
                         </div>
                     </div>
@@ -138,10 +154,10 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                                 id="email"
                                 type="email"
                                 placeholder="john@acme.com"
-                                value={formData.email}
-                                onChange={e => setFormData({ ...formData, email: e.target.value })}
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                                {...form.register("email")}
                             />
+                            {form.formState.errors.email && <p className="text-xs text-destructive font-medium">{form.formState.errors.email.message}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="phone" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
@@ -150,9 +166,8 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                             <Input
                                 id="phone"
                                 placeholder="+1 (555) 000-0000"
-                                value={formData.phone}
-                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                                {...form.register("phone")}
                             />
                         </div>
                     </div>
@@ -166,16 +181,18 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                                 id="value"
                                 type="number"
                                 placeholder="0.00"
-                                value={formData.value}
-                                onChange={e => setFormData({ ...formData, value: e.target.value })}
                                 className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white focus:border-nexus-primary/50 focus:ring-4 focus:ring-nexus-primary/10 transition-all font-medium placeholder:text-muted-foreground/40"
+                                {...form.register("value")}
                             />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="source" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
                                 <Globe className="h-3.5 w-3.5 text-nexus-primary" /> Lead Source
                             </Label>
-                            <Select value={formData.source} onValueChange={(value) => setFormData({ ...formData, source: value })}>
+                            <Select
+                                value={form.watch("source")}
+                                onValueChange={(value) => form.setValue("source", value)}
+                            >
                                 <SelectTrigger className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white transition-all font-medium">
                                     <SelectValue placeholder="Select Source" />
                                 </SelectTrigger>
@@ -196,8 +213,8 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                             <Package className="h-3.5 w-3.5 text-nexus-primary" /> Interested Product
                         </Label>
                         <Select
-                            value={formData.product}
-                            onValueChange={(value) => setFormData({ ...formData, product: value })}
+                            value={form.watch("product")}
+                            onValueChange={(value) => form.setValue("product", value)}
                         >
                             <SelectTrigger id="product" className="h-11 border-gray-200 bg-gray-50/50 focus:bg-white transition-all font-medium">
                                 <SelectValue placeholder="Select product..." />

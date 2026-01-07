@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLeads, Lead } from '@/hooks/useLeads';
+import { useLeads } from '@/hooks/useLeads';
+import { Lead } from '@/types/crm';
 import { CreateLeadDialog } from '@/components/crm/CreateLeadDialog';
 import { LeadDetailsDialog } from '@/components/crm/LeadDetailsDialog';
 import { CRMSettingsDialog } from '@/components/crm/CRMSettingsDialog';
@@ -56,39 +57,33 @@ const stageColors: Record<string, "default" | "secondary" | "destructive" | "out
 };
 
 export default function CRM() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth(); // Renamed to avoid checking conflict if any
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [searchTerm, setSearchTerm] = useState('');
   const [localLeads, setLocalLeads] = useState<Lead[]>([]); // Renamed to avoid conflict with useLeads
   const [localLoading, setLocalLoading] = useState(true); // Renamed to avoid conflict with useLeads
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  const { leads, loading, employees, assignLead, updateStatus, fetchLeads } = useLeads(); // Keep useLeads hook
+  // Derived state is immediate and prevents flash
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
 
+  const { leads, loading, employees, assignLead, updateStatus, fetchLeads } = useLeads();
+
+  // Effect only needed if we have other side effects, unrelated to role check
   useEffect(() => {
-    checkAdmin();
-    // The instruction implies fetchLeads should be called here, but useLeads already handles it.
-    // If the intention is to replace useLeads's state management, then the useLeads hook itself
-    // would need to be modified or its outputs ignored. For now, I'll assume the instruction
-    // wants to add the isAdmin check and the new states, while still leveraging useLeads.
-    // If `fetchLeads` from `useLeads` is meant to populate `localLeads`, then it needs to be adapted.
-    // For now, I'll keep the original `leads` and `loading` from `useLeads` for rendering,
-    // and just add the `isAdmin` check as requested.
-  }, [user]); // Depend on user to re-check admin status
+    // No-op for role check now
+  }, [user]);
 
-  const checkAdmin = async () => {
-    if (!user) {
-      setIsAdmin(false);
-      return;
-    }
-    const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    if (error) {
-      console.error("Error fetching user role:", error);
-      setIsAdmin(false);
-      return;
-    }
-    setIsAdmin(data?.role === 'admin' || data?.role === 'owner');
-  };
+  // Prevent rendering until we know the user's role
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-nexus-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground font-medium animate-pulse">Verifying Access...</p>
+        </div>
+      </div>
+    );
+  }
 
   const [isCheckStockOpen, setIsCheckStockOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);

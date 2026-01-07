@@ -94,7 +94,7 @@ export function ProfileDialog({ children }: ProfileDialogProps) {
             if (fileInputRef.current?.files?.[0]) {
                 const file = fileInputRef.current.files[0];
                 const fileExt = file.name.split('.').pop();
-                const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+                const fileName = `${user.id}-${Date.now()}.${fileExt}`;
                 const filePath = `${fileName}`;
 
                 const { error: uploadError } = await supabase.storage

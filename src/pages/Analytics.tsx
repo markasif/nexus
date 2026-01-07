@@ -2,6 +2,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
 import { EmployeeRanking } from '@/components/dashboard/EmployeeRanking';
+import { SalesFunnel } from '@/components/dashboard/SalesFunnel';
+import { AttendanceStatsChart } from '@/components/dashboard/AttendanceStatsChart';
 import { Badge } from '@/components/ui/badge';
 import {
   BarChart,
@@ -39,7 +41,7 @@ export default function Analytics() {
 
         {/* Charts Grid */}
         <ScrollReveal width="100%">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2">
             <RevenueChart />
 
             <Card>
@@ -87,7 +89,14 @@ export default function Analytics() {
         </ScrollReveal>
 
         <ScrollReveal width="100%">
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 mt-6">
+            <SalesFunnel />
+            <AttendanceStatsChart />
+          </div>
+        </ScrollReveal>
+
+        <ScrollReveal width="100%">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">Inventory Value by Category</CardTitle>

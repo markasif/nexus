@@ -157,20 +157,20 @@ export default function Settings() {
 
         <ScrollReveal width="100%">
           <Tabs defaultValue="company" className="space-y-6">
-            <TabsList className="bg-muted/50">
-              <TabsTrigger value="company" className="data-[state=active]:bg-card">
+            <TabsList className="bg-white border w-full max-w-[600px] grid grid-cols-4">
+              <TabsTrigger value="company" className="h-9">
                 <Building2 className="mr-2 h-4 w-4" />
                 Company
               </TabsTrigger>
-              <TabsTrigger value="security" className="data-[state=active]:bg-card">
+              <TabsTrigger value="security" className="h-9">
                 <Shield className="mr-2 h-4 w-4" />
                 Security
               </TabsTrigger>
-              <TabsTrigger value="notifications" className="data-[state=active]:bg-card">
+              <TabsTrigger value="notifications" className="h-9">
                 <Bell className="mr-2 h-4 w-4" />
                 Notifications
               </TabsTrigger>
-              <TabsTrigger value="system" className="data-[state=active]:bg-card">
+              <TabsTrigger value="system" className="h-9">
                 <Database className="mr-2 h-4 w-4" />
                 System
               </TabsTrigger>

@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AddProductDialog, InventoryItem } from '@/components/inventory/AddProductDialog';
+import { AddProductDialog } from '@/components/inventory/AddProductDialog';
+import { InventoryItem } from '@/types/inventory';
 import { ReportIssueDialog } from '@/components/inventory/ReportIssueDialog';
 import { InventoryRequestsList } from '@/components/inventory/InventoryRequestsList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -103,6 +104,7 @@ export default function Inventory() {
             category: item.category || 'Uncategorized',
             price: parseFloat(item.price),
             stock: item.stock,
+            purchase_price: parseFloat(item.purchase_price || 0),
             lowStock: item.low_stock || 0,
             status: status,
           };
@@ -241,11 +243,11 @@ export default function Inventory() {
         <Tabs defaultValue="catalog" className="w-full" value={activeTab} onValueChange={setActiveTab}>
           {isAdmin && (
             <ScrollReveal width="100%">
-              <TabsList className="grid w-full max-w-[400px] grid-cols-2">
-                <TabsTrigger value="catalog">
+              <TabsList className="bg-white border w-full max-w-[400px] grid grid-cols-2">
+                <TabsTrigger value="catalog" className="h-9">
                   Product Catalog
                 </TabsTrigger>
-                <TabsTrigger value="requests">
+                <TabsTrigger value="requests" className="h-9">
                   Requests & Issues
                 </TabsTrigger>
               </TabsList>

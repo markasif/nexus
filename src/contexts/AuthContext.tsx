@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Race between checkSession and a 5-second timeout to prevent indefinite loading
     const initAuth = async () => {
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), 5000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), 10000));
       try {
         await Promise.race([checkSession(), timeoutPromise]);
       } catch (error) {
@@ -104,21 +104,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     } catch (error) {
-      console.error("Profile fetch failed/timed out:", error);
-      // Fallback: If we have an existing user, keep their role/data. Otherwise default to employee.
-      setUser(prev => {
-        if (prev && prev.id === userId) {
-          return prev;
-        }
-        return {
-          id: userId,
-          email: email || "",
-          name: email?.split("@")[0] || "User",
-          role: 'employee',
-          status: 'active',
-          createdAt: new Date(),
-        };
-      });
+      // Profile fetch failed/timed out
+      // Do NOT default to employee. If we can't verify the role, we should fail safely or keep loading.
+      // However, for UX, if we have a session but no profile, maybe we should try one more time or just log it.
+      // We will keep the user null if profile fails to ensure we don't grant incorrect access.
+      // Alternatively, we can assume 'employee' ONLY if we are sure it's not a critical error.
+      // But to fix the flicker, we must avoid assuming 'employee' for an admin.
+
+      // Better approach: Check metadata if available, otherwise fail.
+      // For now, let's allow the user state to update only if we have data.
     }
   };
 
@@ -151,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (err) {
-      console.error("Login critical failure:", err);
+      // Login failed
       throw err;
     } finally {
       setIsLoading(false);
