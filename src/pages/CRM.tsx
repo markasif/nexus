@@ -196,7 +196,12 @@ export default function CRM() {
                         <CardTitle>Active Leads</CardTitle>
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input placeholder="Search leads..." className="pl-9 w-64" />
+                          <Input
+                            placeholder="Search leads..."
+                            className="pl-9 w-64"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                          />
                         </div>
                       </CardHeader>
                       <CardContent className="flex-1 min-h-0 p-0">
@@ -207,7 +212,11 @@ export default function CRM() {
                         ) : (
                           <ScrollArea className="h-full">
                             <div className="space-y-4 p-6 pt-0">
-                              {leads.map((lead) => (
+                              {leads.filter(lead =>
+                                lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                lead.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                lead.email?.toLowerCase().includes(searchTerm.toLowerCase())
+                              ).map((lead) => (
                                 <div
                                   key={lead.id}
                                   className="flex flex-col gap-4 rounded-xl border border-border p-4 transition-all hover:border-primary/20 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"

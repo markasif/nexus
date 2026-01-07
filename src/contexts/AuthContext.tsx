@@ -5,17 +5,45 @@ import { AuthContextType, User, UserRole } from '@/types/auth';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialize state from localStorage to avoid "spinner hell" on refresh
+  const [user, setUserState] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('nexus_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error("Failed to parse user from storage", e);
+      return null;
+    }
+  });
+
+  // If we have a user in storage, we are NOT loading initially.
+  // We will re-validate in the background.
+  const [isLoading, setIsLoading] = useState(!user);
+
+  const setUser = (newUser: User | null) => {
+    setUserState(newUser);
+    if (newUser) {
+      localStorage.setItem('nexus_user', JSON.stringify(newUser));
+    } else {
+      localStorage.removeItem('nexus_user');
+    }
+  };
 
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          await fetchProfile(session.user.id, session.user.email);
+          // If we have a session, fetch profile (background validation)
+          const profileData = await fetchProfile(session.user.id, session.user.email);
+          // If fetchProfile returns null (error/inactive), it handles the signOut/setUser(null) internally
         } else {
-          setUser(null);
+          // No session found
+          if (user) {
+            // If we thought we had a user but Supabase says no, clear it.
+            console.warn("Session invalid, clearing user.");
+            setUser(null);
+          }
         }
       } catch (error) {
         console.error('Session check failed:', error);
@@ -25,27 +53,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Race between checkSession and a 5-second timeout to prevent indefinite loading
+    // Race logic is still useful for the *initial* load if we didn't have a user.
+    // If we DID have a user, checkSession runs in the background.
     const initAuth = async () => {
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), 10000));
-      try {
-        await Promise.race([checkSession(), timeoutPromise]);
-      } catch (error) {
-        console.warn("Auth initialization timed out or failed, forcing app load.", error);
-        setIsLoading(false);
+      if (!user) {
+        // Only block UI if we don't have a cached user
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), 10000));
+        try {
+          await Promise.race([checkSession(), timeoutPromise]);
+        } catch (error) {
+          console.warn("Auth init timed out", error);
+          setIsLoading(false);
+        }
+      } else {
+        // We have a user, just revalidate silently
+        checkSession();
       }
     };
 
     initAuth();
 
     // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        // We might already have the user, but refreshing profile is safer on login
-        await fetchProfile(session.user.id, session.user.email);
-        setIsLoading(false)
-      } else {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
         setUser(null);
+        setIsLoading(false);
+      } else if (session?.user) {
+        // Optionally refresh profile on token refresh or sign in
+        if (event === 'SIGNED_IN') {
+          await fetchProfile(session.user.id, session.user.email);
+        }
         setIsLoading(false);
       }
     });
@@ -56,7 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchProfile = async (userId: string, email: string | undefined) => {
-    // Helper to fetch with timeout
     const fetchWithTimeout = async () => {
       const { data, error } = await supabase
         .from('profiles')
@@ -75,25 +111,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error("Error fetching profile:", error);
-        // Fallback: Use existing state if available, otherwise default
-        setUser(prev => {
-          if (prev && prev.id === userId) {
-            return prev;
-          }
-          return {
-            id: userId,
-            email: email || "",
-            name: email?.split("@")[0] || "User",
-            role: 'employee',
-            status: 'active',
-            createdAt: new Date(),
-          };
-        });
-        return;
+        // If we can't verify profile, we shouldn't necessarily kill the session if it's just a network blip,
+        // UNLESS we are strictly tight security. For now, let's keep the existing user state if it exists, 
+        // or failing that (if null), fail closed.
+        // But to fix "redirect loop", if we are already logged in (optimistic), we might want to keep it.
+        // However, for strict security requested:
+        if (!user) {
+          return null;
+        }
+        return user; // Return stale user if network fails? Or maybe null? Let's return nothing/void.
       }
 
       if (data) {
-        setUser({
+        if (data.status === 'inactive') {
+          console.warn("User is inactive, signing out.");
+          await supabase.auth.signOut();
+          setUser(null);
+          throw new Error("Your account is deactivated. Please contact the administrator.");
+        }
+
+        const updatedUser: User = {
           id: userId,
           email: email || "",
           name: data.full_name || email?.split("@")[0] || "User",
@@ -101,18 +138,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           status: (data.status as 'active' | 'inactive') || 'active',
           avatar_url: data.avatar_url,
           createdAt: data.created_at ? new Date(data.created_at) : new Date(),
-        });
-      }
-    } catch (error) {
-      // Profile fetch failed/timed out
-      // Do NOT default to employee. If we can't verify the role, we should fail safely or keep loading.
-      // However, for UX, if we have a session but no profile, maybe we should try one more time or just log it.
-      // We will keep the user null if profile fails to ensure we don't grant incorrect access.
-      // Alternatively, we can assume 'employee' ONLY if we are sure it's not a critical error.
-      // But to fix the flicker, we must avoid assuming 'employee' for an admin.
+        };
 
-      // Better approach: Check metadata if available, otherwise fail.
-      // For now, let's allow the user state to update only if we have data.
+        // Update state (and storage)
+        setUser(updatedUser);
+        return updatedUser;
+      }
+    } catch (error: any) {
+      console.error("Profile fetch exception:", error);
+      if (error.message === "Your account is deactivated. Please contact the administrator.") {
+        throw error;
+      }
     }
   };
 
@@ -124,28 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (data.user) {
         await fetchProfile(data.user.id, data.user.email);
-
-        // Wait for state update or check profile directly
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('status')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profile?.status === 'inactive') {
-          await supabase.auth.signOut();
-          setUser(null);
-          throw new Error("Your account is deactivated. Please contact the administrator.");
-        }
       }
     } catch (err) {
-      // Login failed
       throw err;
     } finally {
       setIsLoading(false);

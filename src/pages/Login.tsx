@@ -22,10 +22,23 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Input Validation
+    if (!email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
     setIsLoggingIn(true);
 
     try {
       await login(email, password);
+      // Navigation is handled by auth state change or in AuthContext usually, 
+      // but keeping it here as per existing pattern for explicit redirect after success.
       navigate('/dashboard');
     } catch (err: any) {
       console.error(err);

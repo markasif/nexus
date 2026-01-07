@@ -72,9 +72,8 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                     phone: data.phone,
                     value: data.value,
                     status: data.status,
-                    source: data.source,
-                    product: data.product || 'Other',
-                    assigned_to: user?.role === 'employee' ? user.id : null
+                    assigned_to: user?.role === 'employee' ? user.id : null,
+                    notes: `Source: ${data.source} | Product: ${data.product || 'Other'}`
                 });
 
             if (error) throw error;

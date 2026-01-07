@@ -27,17 +27,14 @@ export function useHRMStats() {
         async function fetchData() {
             setStats(prev => ({ ...prev, isLoading: true }));
             try {
-                // 1. Fetch Profiles + Details
-                const { data: profiles, error } = await supabase
-                    .from('profiles')
-                    .select(`
-            *,
-            employee_details (*)
-          `);
+                // 1. Fetch Aggregated Stats via RPC (SQL function)
+                // This handles the "Total Present / Total Working Days" logic efficiently in DB.
+                const { data: employeeStats, error: rpcError } = await supabase
+                    .rpc('get_hrm_stats_aggregated');
 
-                if (error) throw error;
+                if (rpcError) throw rpcError;
 
-                // 2. Fetch Pending Leaves with Details
+                // 2. Fetch Pending Leaves count
                 const { data: leavesData, count: pendingCount, error: tasksError } = await supabase
                     .from('leaves')
                     .select(`
@@ -49,73 +46,30 @@ export function useHRMStats() {
 
                 if (tasksError) throw tasksError;
 
-                // 3. Fetch Attendance for Current Month
-                const startOfMonth = new Date();
-                startOfMonth.setDate(1);
-                const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
-
-                const { data: attendanceData } = await supabase
-                    .from('attendance')
-                    .select('employee_id, status')
-                    .gte('date', startOfMonthStr);
-
-                // Calculate working days passed in current month (Mon-Fri)
-                let workingDaysPassed = 0;
-                const tempDate = new Date(startOfMonth);
-                const today = new Date();
-
-                while (tempDate <= today) {
-                    const day = tempDate.getDay();
-                    if (day !== 0 && day !== 6) { // 0=Sun, 6=Sat
-                        workingDaysPassed++;
-                    }
-                    tempDate.setDate(tempDate.getDate() + 1);
-                }
-
-                // Map attendance counts (Unique Days only)
-                const empAttendanceDays: Record<string, Set<string>> = {};
-                attendanceData?.forEach((record: any) => {
-                    if (record.status === 'present' || record.status === 'late') {
-                        if (!empAttendanceDays[record.employee_id]) {
-                            empAttendanceDays[record.employee_id] = new Set();
-                        }
-                        empAttendanceDays[record.employee_id].add(record.date);
-                    }
-                });
-
-                if (!profiles) return;
-
-                // Transform Data & Filter out current user
-                const mappedEmployees: Employee[] = profiles
-                    .filter((p: any) => p.id !== user?.id) // Filter out logged-in user
-                    .map((p: any) => {
-                        const uniqueDaysPresent = empAttendanceDays[p.id]?.size || 0;
-
-                        // Cap at 100% and handle division by zero
-                        let attendancePct = 0;
-                        if (workingDaysPassed > 0) {
-                            attendancePct = Math.round((uniqueDaysPresent / workingDaysPassed) * 100);
-                            if (attendancePct > 100) attendancePct = 100;
-                        }
-
-                        return {
-                            id: p.id,
-                            name: p.full_name || p.email?.split('@')[0],
-                            email: p.email,
-                            role: p.role,
-                            status: p.status || 'active',
-                            details: p.employee_details,
-                            attendance: `${attendancePct}%`,
-                        };
-                    });
+                // Transform RPC result to Employee type
+                // RPC returns: id, name, email, role, status, department, base_salary, attendance_pct
+                const mappedEmployees: Employee[] = (employeeStats || [])
+                    .map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        email: p.email,
+                        role: p.role,
+                        status: p.status || 'active',
+                        details: {
+                            department: p.department,
+                            base_salary: p.base_salary,
+                            // other details might be missing in RPC return, strictly typing needed?
+                            // flexible for list view.
+                        },
+                        attendance: `${p.attendance_pct}%`,
+                    }));
 
                 setEmployees(mappedEmployees);
                 setLeaves(leavesData || []);
 
-                // Calculate Payroll
+                // Calculate Totals form the aggregated data
                 const totalPayroll = mappedEmployees.reduce((sum, emp) => sum + (Number(emp.details?.base_salary) || 0), 0);
 
-                // Calculate Average Attendance of the team
                 const totalAvgAttendance = mappedEmployees.reduce((sum, emp) => sum + parseInt(emp.attendance), 0);
                 const avgAttendanceStr = mappedEmployees.length > 0
                     ? `${Math.round(totalAvgAttendance / mappedEmployees.length)}%`

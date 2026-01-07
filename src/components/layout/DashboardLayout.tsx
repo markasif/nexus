@@ -25,22 +25,38 @@ export function DashboardLayout({ children, requireAdmin = false }: DashboardLay
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-lg" />
+          <p className="text-sm font-medium text-muted-foreground animate-pulse">Verifying Access...</p>
         </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/" state={{ from: window.location.pathname }} replace />;
   }
 
   // Role-based access control
   if (requireAdmin && user?.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    // Instead of auto-redirecting, show an access denied state. 
+    // This helps debug why usage might be denied and provides better UX.
+    return (
+      <div className="flex min-h-screen bg-background">
+        <AppSidebar collapsed={sidebarCollapsed} setCollapsed={handleSidebarCollapse} />
+        <main className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
+          <div className="text-center space-y-4">
+            <h2 className="text-2xl font-bold text-destructive">Access Restricted</h2>
+            <p className="text-muted-foreground">This area is reserved for Administrators.</p>
+            <p className="text-sm text-gray-500">Current Role: {user?.role || 'Unknown'}</p>
+            <a href="/dashboard" className="inline-block text-primary hover:underline">
+              Return to Dashboard
+            </a>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (

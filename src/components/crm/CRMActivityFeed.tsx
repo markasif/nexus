@@ -50,7 +50,40 @@ export function CRMActivityFeed() {
 
             if (data) setLogs(data);
         };
+
         fetchLogs();
+
+        // Real-time subscription
+        const channel = supabase
+            .channel('crm-activity-feed')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'crm_activity_logs'
+                },
+                async (payload) => {
+                    // Fetch the full details of the new log (including profile name)
+                    const { data: newLog } = await supabase
+                        .from('crm_activity_logs')
+                        .select(`
+                            *,
+                            profiles:actor_id (full_name)
+                        `)
+                        .eq('id', payload.new.id)
+                        .single();
+
+                    if (newLog) {
+                        setLogs(prev => [newLog, ...prev]);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     return (
