@@ -24,7 +24,7 @@ export function useSettings() {
     const [settings, setSettings] = useState<SettingsData>({
         company_name: 'NEXUS',
         tax_id: '',
-        currency: 'USD',
+        currency: 'INR', // Default to INR
         low_stock_threshold: 5,
         default_commission: 8,
         audit_logging: true,
@@ -44,7 +44,7 @@ export function useSettings() {
                     setSettings({
                         company_name: data.company_name || 'NEXUS',
                         tax_id: data.tax_id || '',
-                        currency: data.currency || 'USD',
+                        currency: data.currency || 'INR', // Default to INR if null
                         low_stock_threshold: data.low_stock_threshold ?? 5,
                         default_commission: data.default_commission ?? 8,
                         audit_logging: data.audit_logging ?? true,
@@ -95,9 +95,10 @@ export function useSettings() {
     }, []);
 
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat('en-IN', { // Use Indian Locale for ₹ 
             style: 'currency',
             currency: settings.currency,
+            maximumFractionDigits: 0 // Optional: Remove decimals if preferred for Rupee
         }).format(amount);
     };
 

@@ -27,14 +27,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 const leadSchema = z.object({
-    name: z.string().min(1, "Contact name is required"),
+    name: z.string().min(2, "Contact name must be at least 2 characters"),
     company: z.string().optional(),
     email: z.string().email("Invalid email address").optional().or(z.literal('')),
     phone: z.string().optional(),
     value: z.coerce.number().min(0).optional().default(0),
     status: z.string().default("new"),
     source: z.string().default("website"),
-    product: z.string().optional()
+    product: z.string().min(1, "Please select a product interest") // Made required
+}).refine(data => data.email || data.phone, {
+    message: "Either Email or Phone number is required",
+    path: ["email"] // Show error on email field
 });
 
 type LeadFormValues = z.infer<typeof leadSchema>;
@@ -72,8 +75,9 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                     phone: data.phone,
                     value: data.value,
                     status: data.status,
+                    source: data.source, // Fix: Save the source to the column!
                     assigned_to: user?.role === 'employee' ? user.id : null,
-                    notes: `Source: ${data.source} | Product: ${data.product || 'Other'}`
+                    notes: `Product Interest: ${data.product || 'None'}`
                 });
 
             if (error) throw error;
@@ -98,7 +102,7 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                     New Lead
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[550px] overflow-hidden p-0 gap-0 border-0 shadow-2xl">
+            <DialogContent className="fixed left-[50vw] top-[2%] z-[200] grid w-[90vw] max-w-[550px] translate-x-[-50%] translate-y-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] gap-0 border-0 bg-background p-0 shadow-2xl duration-200 rounded-xl overflow-hidden outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[2%] sm:data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[2%] sm:data-[state=open]:slide-in-from-top-[48%] max-h-[96vh] overflow-y-auto sm:max-h-none sm:overflow-visible">
                 {/* Premium Header with Deep Ocean Gradient */}
                 <div className="relative bg-gradient-to-br from-nexus-dark to-nexus-primary px-6 py-6 text-white overflow-hidden">
                     <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
@@ -227,6 +231,7 @@ export function CreateLeadDialog({ onLeadCreated }: { onLeadCreated: () => void 
                                 <SelectItem value="Digital Marketing">Digital Marketing</SelectItem>
                             </SelectContent>
                         </Select>
+                        {form.formState.errors.product && <p className="text-xs text-destructive font-medium mt-1">{form.formState.errors.product.message}</p>}
                     </div>
 
                     <DialogFooter className="pt-6 border-t border-gray-100 flex gap-3">

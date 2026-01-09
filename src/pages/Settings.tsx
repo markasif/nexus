@@ -19,10 +19,10 @@ import {
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 
 const CURRENCIES = [
+  { code: 'INR', label: 'Indian Rupee (₹)' },
   { code: 'USD', label: 'US Dollar ($)' },
   { code: 'EUR', label: 'Euro (€)' },
   { code: 'GBP', label: 'British Pound (£)' },
-  { code: 'INR', label: 'Indian Rupee (₹)' },
   { code: 'JPY', label: 'Japanese Yen (¥)' },
   { code: 'AUD', label: 'Australian Dollar (A$)' },
   { code: 'CAD', label: 'Canadian Dollar (C$)' },
@@ -37,6 +37,7 @@ export default function Settings() {
     company_email: '',
     tax_id: '',
     currency: 'USD',
+    monthly_target: 500000,
     low_stock_threshold: 5,
     default_commission: 8,
     audit_logging: true,
@@ -64,6 +65,7 @@ export default function Settings() {
             company_email: data.company_email || '',
             tax_id: data.tax_id || '',
             currency: data.currency || 'USD',
+            monthly_target: data.monthly_target || 500000,
             low_stock_threshold: data.low_stock_threshold ?? 5,
             default_commission: data.default_commission ?? 8,
             audit_logging: data.audit_logging ?? true,
@@ -88,6 +90,7 @@ export default function Settings() {
         company_email: settings.company_email,
         tax_id: settings.tax_id,
         currency: settings.currency,
+        monthly_target: Number(settings.monthly_target),
         low_stock_threshold: Number(settings.low_stock_threshold),
         default_commission: Number(settings.default_commission),
         audit_logging: settings.audit_logging,
@@ -340,6 +343,16 @@ export default function Settings() {
                         type="number"
                         value={settings.low_stock_threshold}
                         onChange={(e) => handleChange('low_stock_threshold', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="monthly-target">Monthly Revenue Target (₹)</Label>
+                      <Input
+                        id="monthly-target"
+                        type="number"
+                        value={settings.monthly_target}
+                        onChange={(e) => handleChange('monthly_target', e.target.value)}
+                        placeholder="e.g. 500000"
                       />
                     </div>
 

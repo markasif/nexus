@@ -33,35 +33,41 @@ export function useRevenueHistory() {
     useEffect(() => {
         async function fetchRevenue() {
             try {
-                // Fetch completed orders from the last 6 months
+                // Fetch closed-won leads from the last 6 months (Source of Truth for Revenue)
                 const sixMonthsAgo = new Date();
                 sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-                const { data: orders } = await supabase
-                    .from('orders')
-                    .select('amount, created_at')
-                    .eq('status', 'completed')
+                // Assuming 'updated_at' or 'created_at' represents the close date. 
+                // Ideally 'closed_at' but leads table might not have it. Using 'updated_at' as proxy for now or created_at if acceptable.
+                // Let's use created_at for simplicity as per existing pattern or check if we can filter by status change.
+                // Better: query 'leads' where status='closed-won'.
+                const { data: leads } = await supabase
+                    .from('leads')
+                    .select('value, created_at')
+                    .eq('status', 'closed-won')
                     .gte('created_at', sixMonthsAgo.toISOString())
                     .order('created_at', { ascending: true });
 
-                const grouped = (orders || []).reduce((acc, order) => {
-                    const date = new Date(order.created_at);
+                const grouped = (leads || []).reduce((acc, lead) => {
+                    const date = new Date(lead.created_at);
                     const month = date.toLocaleString('default', { month: 'short' });
-                    acc[month] = (acc[month] || 0) + Number(order.amount);
+                    acc[month] = (acc[month] || 0) + Number(lead.value);
                     return acc;
                 }, {} as Record<string, number>);
 
-                // Ensure all relevant months are present (optional, but good for charts)
-                // For now, just mapping existing data
-                const chartData = Object.entries(grouped).map(([month, revenue]) => ({
-                    month,
-                    revenue,
-                }));
+                // Ensure 6 months mapping exists (fill zeros)
+                const resultData = [];
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const m = d.toLocaleString('default', { month: 'short' });
+                    resultData.push({
+                        month: m,
+                        revenue: grouped[m] || 0
+                    });
+                }
 
-                // Sort by month index if needed, but 'created_at' order usually handles it roughly
-                // Better to rely on the data returned order if we want chronological
-
-                setData(chartData);
+                setData(resultData);
             } catch (err) {
                 console.error("Failed to fetch revenue history", err);
             } finally {
@@ -84,24 +90,31 @@ export function useMonthlyDeals() {
                 const sixMonthsAgo = new Date();
                 sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-                const { data: orders } = await supabase
-                    .from('orders')
+                const { data: leads } = await supabase
+                    .from('leads')
                     .select('created_at')
-                    .eq('status', 'completed')
+                    .eq('status', 'closed-won')
                     .gte('created_at', sixMonthsAgo.toISOString())
                     .order('created_at', { ascending: true });
 
-                const grouped = (orders || []).reduce((acc, order) => {
-                    const date = new Date(order.created_at);
+                const grouped = (leads || []).reduce((acc, lead) => {
+                    const date = new Date(lead.created_at);
                     const month = date.toLocaleString('default', { month: 'short' });
                     acc[month] = (acc[month] || 0) + 1;
                     return acc;
                 }, {} as Record<string, number>);
 
-                const chartData = Object.entries(grouped).map(([month, deals]) => ({
-                    month,
-                    deals,
-                }));
+                // Ensure 6 months fill
+                const chartData = [];
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const m = d.toLocaleString('default', { month: 'short' });
+                    chartData.push({
+                        month: m,
+                        deals: grouped[m] || 0
+                    });
+                }
 
                 setData(chartData);
             } catch (err) {
@@ -283,35 +296,36 @@ export function useLeadSources() {
     useEffect(() => {
         async function fetchSources() {
             try {
+                // Manual fetch for sources to bypass potential old RPC versions
+                // This ensures we get all sources and don't rely on database function updates functioning perfectly
                 const { data: leads } = await supabase
                     .from('leads')
-                    .select('source');
+                    .select('source')
+                    .neq('status', 'archived'); // Filter archived if needed, or get all
 
                 const counts: Record<string, number> = {};
 
                 (leads || []).forEach(lead => {
-                    // Normalize source (default to 'Direct' if missing)
-                    const source = lead.source || 'Direct';
+                    // Normalize source
+                    const source = lead.source || 'Unknown';
+                    // Optional: Capitalize first letter logic handled in chart usually, but here we just aggregate unique strings
                     counts[source] = (counts[source] || 0) + 1;
                 });
 
-                let chartData = Object.entries(counts).map(([name, value]) => ({
+                const chartData = Object.entries(counts).map(([name, value]) => ({
                     name,
                     value,
-                })).sort((a, b) => b.value - a.value);
+                })).sort((a, b) => b.value - a.value); // Sort descending
 
-                // Mock data if empty
+                // Only use mock if absolutely no data exists
                 if (chartData.length === 0) {
-                    chartData = [
-                        { name: 'Website', value: 45 },
-                        { name: 'LinkedIn', value: 30 },
-                        { name: 'Referral', value: 25 },
-                        { name: 'Cold Call', value: 15 },
-                        { name: 'Events', value: 10 },
-                    ];
+                    // Leave empty or provide empty state, but don't force fake data which confuses users
+                    // But for now, let's return empty array so UI shows "No data" or handles it
+                    setData([]);
+                } else {
+                    setData(chartData);
                 }
 
-                setData(chartData);
             } catch (err) {
                 console.error("Error fetching lead sources", err);
             } finally {
@@ -335,27 +349,53 @@ export function useAttendanceAnalytics() {
                 const today = new Date().toISOString().split('T')[0];
 
                 // 1. Get all employees count
+                // 1. Get all employees count
                 const { count: totalEmployees } = await supabase
                     .from('profiles')
                     .select('*', { count: 'exact', head: true })
-                    .eq('role', 'employee');
+                    .eq('role', 'employee')
+                    .eq('status', 'active');
 
                 // 2. Get today's attendance records
                 const { data: attendance } = await supabase
                     .from('attendance')
-                    .select('clock_in, clock_out')
+                    .select('employee_id, clock_in, clock_out')
                     .eq('date', today);
 
-                const presentCount = attendance?.length || 0;
+                // 3. Get employees on approved leave today
+                const { count: leaveCount } = await supabase
+                    .from('leaves')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'approved')
+                    .lte('start_date', today)
+                    .gte('end_date', today);
 
-                // Calculate absent (Total - Present)
-                const absentCount = Math.max(0, (totalEmployees || 0) - presentCount);
+                // Count UNIQUE employees present
+                const presentEmployeeIds = new Set((attendance || []).map(r => r.employee_id));
+                const presentCount = presentEmployeeIds.size;
+
+                const onLeave = leaveCount || 0;
+
+                // Calculate Late (Clock in after 9:30 AM)
+                // Note: Check unique late employees to avoid double counting
+                const lateEmployees = new Set();
+                (attendance || []).forEach(record => {
+                    if (!record.clock_in) return;
+                    const [hours, minutes] = record.clock_in.split(':').map(Number);
+                    if (hours > 9 || (hours === 9 && minutes > 30)) {
+                        lateEmployees.add(record.employee_id);
+                    }
+                });
+                const lateCount = lateEmployees.size;
+
+                // Calculate Absent (Total - (Present + On Leave))
+                const absentCount = Math.max(0, (totalEmployees || 0) - presentCount - onLeave);
 
                 const chartData = [
                     { name: 'Present', value: presentCount, fill: '#22c55e' },
                     { name: 'Absent', value: absentCount, fill: '#ef4444' },
-                    { name: 'On Leave', value: 0, fill: '#eab308' }, // Placeholder
-                    { name: 'Late', value: 0, fill: '#f97316' }, // Placeholder
+                    { name: 'On Leave', value: onLeave, fill: '#eab308' },
+                    { name: 'Late', value: lateCount, fill: '#f97316' },
                 ];
 
                 // If no data (dev mode), Show something interesting so it's not empty

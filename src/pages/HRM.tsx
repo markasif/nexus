@@ -144,7 +144,7 @@ export default function HRM() {
                   <Clock className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Avg. Attendance</p>
+                  <p className="text-sm text-muted-foreground">Avg. Time Bank</p>
                   <p className="text-2xl font-bold">{stats.isLoading ? "..." : stats.avgAttendance}</p>
                 </div>
               </CardContent>
@@ -156,7 +156,7 @@ export default function HRM() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Payroll</p>
-                  <p className="text-2xl font-bold">{stats.isLoading ? "..." : `$${stats.totalPayroll.toLocaleString()}`}</p>
+                  <p className="text-2xl font-bold">{stats.isLoading ? "..." : `₹${stats.totalPayroll.toLocaleString()}`}</p>
                 </div>
               </CardContent>
             </Card>
@@ -191,55 +191,136 @@ export default function HRM() {
             {/* Employee Table */}
             <ScrollReveal width="100%">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle>All Employees</CardTitle>
-                  <div className="relative">
+                  <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Search employees..." className="pl-9 w-64" />
+                    <Input placeholder="Search employees..." className="pl-9 w-full sm:w-64" />
                   </div>
                 </CardHeader>
                 <CardContent>
                   {stats.isLoading ? (
                     <div className="py-8 text-center text-muted-foreground">Loading employees...</div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Department</TableHead>
-                          <TableHead>Base Salary</TableHead>
-                          <TableHead>Attendance</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <div className="space-y-4">
+                      {/* Desktop Table */}
+                      <div className="hidden sm:block">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Department</TableHead>
+                              <TableHead>Base Salary</TableHead>
+                              <TableHead>Time Bank</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {employees.map((employee) => (
+                              <TableRow key={employee.id}>
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium">{employee.name}</p>
+                                    <p className="text-sm text-muted-foreground">{employee.email}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="capitalize">{employee.role}</TableCell>
+                                <TableCell>{employee.details?.department || '-'}</TableCell>
+                                <TableCell>₹{(employee.details?.base_salary || 0).toLocaleString()}</TableCell>
+                                <TableCell>{employee.attendance}</TableCell>
+                                <TableCell>
+                                  <Badge variant={employee.status === 'active' ? 'success' : 'secondary'}>
+                                    {employee.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                      <DropdownMenuItem onClick={() => setEditingEmployee(employee)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Edit Details
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => toggleStatus(employee.id, employee.status)}>
+                                        {employee.status === 'active' ? (
+                                          <>
+                                            <Ban className="mr-2 h-4 w-4 text-orange-500" />
+                                            <span>Deactivate</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                                            <span>Activate</span>
+                                          </>
+                                        )}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteEmployee(employee.id)}>
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete Account
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {employees.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={7} className="h-24 text-center">
+                                  No employees found.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile Card View */}
+                      <div className="space-y-4 sm:hidden">
                         {employees.map((employee) => (
-                          <TableRow key={employee.id}>
-                            <TableCell>
+                          <div key={employee.id} className="rounded-lg border bg-card text-card-foreground shadow-sm p-4">
+                            <div className="flex items-center justify-between mb-4">
                               <div>
-                                <p className="font-medium">{employee.name}</p>
+                                <h3 className="font-semibold">{employee.name}</h3>
                                 <p className="text-sm text-muted-foreground">{employee.email}</p>
                               </div>
-                            </TableCell>
-                            <TableCell className="capitalize">{employee.role}</TableCell>
-                            <TableCell>{employee.details?.department || '-'}</TableCell>
-                            <TableCell>${(employee.details?.base_salary || 0).toLocaleString()}</TableCell>
-                            <TableCell>{employee.attendance}</TableCell>
-                            <TableCell>
                               <Badge variant={employee.status === 'active' ? 'success' : 'secondary'}>
                                 {employee.status}
                               </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                              <div>
+                                <p className="text-muted-foreground">Role</p>
+                                <p className="font-medium capitalize">{employee.role}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Department</p>
+                                <p className="font-medium">{employee.details?.department || '-'}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Salary</p>
+                                <p className="font-medium">₹{(employee.details?.base_salary || 0).toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Time Bank</p>
+                                <p className="font-medium">{employee.attendance}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end pt-2 border-t">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreHorizontal className="h-4 w-4" />
+                                  <Button variant="ghost" size="sm" className="w-full justify-center">
+                                    <MoreHorizontal className="h-4 w-4 mr-2" /> Actions
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end" className="w-56">
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                   <DropdownMenuItem onClick={() => setEditingEmployee(employee)}>
                                     <Edit className="mr-2 h-4 w-4" /> Edit Details
@@ -263,18 +344,11 @@ export default function HRM() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
+                            </div>
+                          </div>
                         ))}
-                        {employees.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
-                              No employees found.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -289,49 +363,88 @@ export default function HRM() {
                 </CardHeader>
                 <CardContent>
                   {leaves && leaves.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Employee</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Dates</TableHead>
-                          <TableHead>Reason</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <div className="space-y-4">
+                      {/* Desktop Table View */}
+                      <div className="hidden sm:block">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Employee</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Dates</TableHead>
+                              <TableHead>Reason</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {leaves.map((leave) => (
+                              <TableRow key={leave.id}>
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium">{leave.profiles?.full_name || 'Unknown'}</p>
+                                    <p className="text-xs text-muted-foreground">{leave.profiles?.email}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="capitalize">
+                                  <Badge variant="outline">{leave.type}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1 text-sm">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="max-w-[200px] truncate" title={leave.reason}>
+                                  {leave.reason}
+                                </TableCell>
+                                <TableCell className="text-right space-x-2">
+                                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleLeaveAction(leave.id, 'approved')}>
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleLeaveAction(leave.id, 'rejected')}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile Card View */}
+                      <div className="space-y-4 sm:hidden">
                         {leaves.map((leave) => (
-                          <TableRow key={leave.id}>
-                            <TableCell>
+                          <div key={leave.id} className="rounded-lg border bg-card text-card-foreground shadow-sm p-4">
+                            <div className="flex items-center justify-between mb-3">
                               <div>
-                                <p className="font-medium">{leave.profiles?.full_name || 'Unknown'}</p>
+                                <p className="font-semibold">{leave.profiles?.full_name || 'Unknown'}</p>
                                 <p className="text-xs text-muted-foreground">{leave.profiles?.email}</p>
                               </div>
-                            </TableCell>
-                            <TableCell className="capitalize">
-                              <Badge variant="outline">{leave.type}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1 text-sm">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
+                              <Badge variant="outline" className="capitalize">{leave.type}</Badge>
+                            </div>
+
+                            <div className="space-y-2 text-sm mb-4">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-4 w-4" />
+                                <span>{new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}</span>
                               </div>
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={leave.reason}>
-                              {leave.reason}
-                            </TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleLeaveAction(leave.id, 'approved')}>
-                                <Check className="h-4 w-4" />
+                              <div className="bg-muted/50 p-2 rounded text-muted-foreground text-xs italic">
+                                "{leave.reason}"
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                              <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleLeaveAction(leave.id, 'approved')}>
+                                <Check className="h-4 w-4 mr-2" /> Approve
                               </Button>
-                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleLeaveAction(leave.id, 'rejected')}>
-                                <X className="h-4 w-4" />
+                              <Button size="sm" variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => handleLeaveAction(leave.id, 'rejected')}>
+                                <X className="h-4 w-4 mr-2" /> Reject
                               </Button>
-                            </TableCell>
-                          </TableRow>
+                            </div>
+                          </div>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                       <Calendar className="h-10 w-10 mb-2 opacity-20" />

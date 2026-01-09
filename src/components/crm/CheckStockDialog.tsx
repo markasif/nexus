@@ -42,10 +42,30 @@ export function CheckStockDialog({ open, onOpenChange }: CheckStockDialogProps) 
             const { data, error } = await supabase
                 .from('inventory')
                 .select('sku, name, stock, low_stock, price')
-                .order('stock', { ascending: true });
+                .eq('archived', false);
 
             if (error) throw error;
-            setItems(data || []);
+
+            if (data) {
+                // Client-side sort to prioritize "Action Needed" items
+                const sorted = [...data].sort((a, b) => {
+                    const aLow = a.low_stock || 5;
+                    const bLow = b.low_stock || 5;
+
+                    const aStatus = a.stock === 0 ? 0 : (a.stock <= aLow ? 1 : 2);
+                    const bStatus = b.stock === 0 ? 0 : (b.stock <= bLow ? 1 : 2);
+
+                    // 1. Sort by Status (Out > Low > Normal)
+                    if (aStatus !== bStatus) return aStatus - bStatus;
+
+                    // 2. Sort by Stock (Low to High within category)
+                    if (a.stock !== b.stock) return a.stock - b.stock;
+
+                    // 3. Sort by Name (A-Z)
+                    return a.name.localeCompare(b.name);
+                });
+                setItems(sorted);
+            }
         } catch (err) {
             console.error("Error fetching inventory:", err);
         } finally {
@@ -60,7 +80,7 @@ export function CheckStockDialog({ open, onOpenChange }: CheckStockDialogProps) 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden gap-0 border-0 shadow-2xl">
+            <DialogContent className="fixed left-[50%] top-[10%] z-[200] grid w-[90vw] max-w-lg translate-x-[-50%] translate-y-0 sm:top-[50%] sm:translate-y-[-50%] gap-4 border bg-background p-0 shadow-2xl duration-200 rounded-xl overflow-hidden border-0 outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[2%] sm:data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[2%] sm:data-[state=open]:slide-in-from-top-[48%] max-h-[96vh] overflow-y-auto">
                 {/* Header - Premium Gradient */}
                 <div className="relative bg-gradient-to-br from-nexus-dark to-nexus-primary px-6 py-6 text-white overflow-hidden">
                     {/* Background pattern equivalent - simplified for now */}

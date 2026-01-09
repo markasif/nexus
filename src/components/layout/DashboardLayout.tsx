@@ -63,10 +63,10 @@ export function DashboardLayout({ children, requireAdmin = false }: DashboardLay
     <div className="flex min-h-screen bg-background">
       <AppSidebar collapsed={sidebarCollapsed} setCollapsed={handleSidebarCollapse} />
       <main
-        className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'
+        className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-64'
           }`}
       >
-        <div className="p-4 pt-4 md:p-8 md:pt-6">
+        <div className="p-4 pt-16 md:pt-6 md:p-8">
           {children}
         </div>
       </main>

@@ -1,37 +1,40 @@
+import { Suspense, lazy, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ScrollReveal } from '@/components/ui/ScrollReveal';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { QuickActionCard } from '@/components/dashboard/QuickActionCard';
-import { RevenueChart } from '@/components/dashboard/RevenueChart';
-import { EmployeeAttendanceStatus } from '@/components/dashboard/EmployeeAttendanceStatus';
-import { AttendanceWidget } from '@/components/dashboard/AttendanceWidget';
-import { EarningsWidget } from '@/components/dashboard/EarningsWidget';
 import { WelcomeBanner } from '@/components/dashboard/WelcomeBanner';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { ReportsDialog } from '@/components/dashboard/ReportsDialog';
+import { SystemActionsDialog } from '@/components/dashboard/SystemActionsDialog';
+import { RequestLeaveDialog } from '@/components/dashboard/RequestLeaveDialog';
 import {
-  DollarSign,
+  IndianRupee,
   Users,
   Package,
   AlertTriangle,
   Target,
   Clock,
   TrendingUp,
-  Search,
-  Calendar as CalendarIcon,
   Zap,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 
+// Lazy Load Widgets (Optimized Bundle Splitting)
+const RevenueChart = lazy(() => import('@/components/dashboard/RevenueChart').then(m => ({ default: m.RevenueChart })));
+const EmployeeAttendanceStatus = lazy(() => import('@/components/dashboard/EmployeeAttendanceStatus').then(m => ({ default: m.EmployeeAttendanceStatus })));
+const AttendanceWidget = lazy(() => import('@/components/dashboard/AttendanceWidget').then(m => ({ default: m.AttendanceWidget })));
+const EarningsWidget = lazy(() => import('@/components/dashboard/EarningsWidget').then(m => ({ default: m.EarningsWidget })));
+const AdminAnnouncementsWidget = lazy(() => import('@/components/dashboard/AdminAnnouncementsWidget').then(m => ({ default: m.AdminAnnouncementsWidget })));
+const TaskListWidget = lazy(() => import('@/components/dashboard/TaskListWidget').then(m => ({ default: m.TaskListWidget })));
+const AnnouncementsWidget = lazy(() => import('@/components/dashboard/AnnouncementsWidget').then(m => ({ default: m.AnnouncementsWidget })));
+const MyLeaveHistory = lazy(() => import('@/components/dashboard/MyLeaveHistory').then(m => ({ default: m.MyLeaveHistory })));
+const MyLeadsWidget = lazy(() => import('@/components/dashboard/MyLeadsWidget').then(m => ({ default: m.MyLeadsWidget })));
 
-import { useState } from 'react';
-import { ReportsDialog } from '@/components/dashboard/ReportsDialog';
-import { SystemActionsDialog } from '@/components/dashboard/SystemActionsDialog';
-import { AdminAnnouncementsWidget } from '@/components/dashboard/AdminAnnouncementsWidget';
-import { TaskListWidget } from '@/components/dashboard/TaskListWidget';
-import { AnnouncementsWidget } from '@/components/dashboard/AnnouncementsWidget';
-import { RequestLeaveDialog } from '@/components/dashboard/RequestLeaveDialog';
-import { MyLeaveHistory } from '@/components/dashboard/MyLeaveHistory';
-import { MyLeadsWidget } from '@/components/dashboard/MyLeadsWidget';
+const WidgetSkeleton = () => (
+  <div className="h-[350px] w-full animate-pulse rounded-xl bg-gray-100" />
+);
 
 function AdminDashboard() {
   const stats = useDashboardStats();
@@ -51,28 +54,30 @@ function AdminDashboard() {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <KPICard
             title="Total Revenue"
-            value={stats.isLoading ? "..." : `$${stats.revenue.toLocaleString()}`}
+            value={`₹${stats.revenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
             change={12.5}
-            icon={<DollarSign className="h-6 w-6" />}
+            icon={<IndianRupee className="h-6 w-6" />}
             variant="primary"
+            loading={stats.isLoading}
           />
           <KPICard
             title="Active Employees"
-            value={stats.isLoading ? "..." : stats.activeEmployees.toString()}
-            change={8.3}
+            value={stats.activeEmployees.toString()}
             icon={<Users className="h-6 w-6" />}
+            loading={stats.isLoading}
           />
           <KPICard
             title="Total Inventory"
-            value={stats.isLoading ? "..." : stats.totalInventory.toLocaleString()}
-            change={-2.1}
+            value={stats.totalInventory.toLocaleString()}
             icon={<Package className="h-6 w-6" />}
+            loading={stats.isLoading}
           />
           <KPICard
             title="Low Stock Alerts"
-            value={stats.isLoading ? "..." : stats.lowStockAlerts.toString()}
+            value={stats.lowStockAlerts.toString()}
             icon={<AlertTriangle className="h-6 w-6" />}
             variant={stats.lowStockAlerts > 0 ? "destructive" : "warning"}
+            loading={stats.isLoading}
           />
         </div>
       </ScrollReveal>
@@ -81,16 +86,22 @@ function AdminDashboard() {
       <ScrollReveal width="100%">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <RevenueChart />
+            <Suspense fallback={<WidgetSkeleton />}>
+              <RevenueChart />
+            </Suspense>
           </div>
-          <EmployeeAttendanceStatus />
+          <Suspense fallback={<WidgetSkeleton />}>
+            <EmployeeAttendanceStatus />
+          </Suspense>
         </div>
       </ScrollReveal>
 
       {/* Announcements Management Section */}
       <ScrollReveal width="100%">
         <div className="grid gap-6">
-          <AdminAnnouncementsWidget />
+          <Suspense fallback={<WidgetSkeleton />}>
+            <AdminAnnouncementsWidget />
+          </Suspense>
         </div>
       </ScrollReveal>
 
@@ -164,20 +175,20 @@ function EmployeeDashboard() {
       {/* Main Grid */}
       <ScrollReveal width="100%">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <AttendanceWidget />
-          <EarningsWidget />
-          <MyLeaveHistory />
+          <Suspense fallback={<WidgetSkeleton />}><AttendanceWidget /></Suspense>
+          <Suspense fallback={<WidgetSkeleton />}><EarningsWidget /></Suspense>
+          <Suspense fallback={<WidgetSkeleton />}><MyLeaveHistory /></Suspense>
         </div>
 
         {/* Leads Section - High Priority */}
         <div className="mt-8">
-          <MyLeadsWidget />
+          <Suspense fallback={<WidgetSkeleton />}><MyLeadsWidget /></Suspense>
         </div>
 
         {/* Tasks & Announcements Grid */}
         <div className="grid gap-6 md:grid-cols-2 mt-8">
-          <TaskListWidget />
-          <AnnouncementsWidget />
+          <Suspense fallback={<WidgetSkeleton />}><TaskListWidget /></Suspense>
+          <Suspense fallback={<WidgetSkeleton />}><AnnouncementsWidget /></Suspense>
         </div>
       </ScrollReveal>
 
@@ -212,7 +223,7 @@ function EmployeeDashboard() {
             <QuickActionCard
               title="My Earnings"
               description="Commission & payslips"
-              icon={<DollarSign className="h-6 w-6" />}
+              icon={<IndianRupee className="h-6 w-6" />}
               action="/earnings"
               actionLabel="Details"
             />

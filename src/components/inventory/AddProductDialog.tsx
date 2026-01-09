@@ -148,9 +148,9 @@ export function AddProductDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] overflow-hidden p-0 gap-0 border-0 shadow-2xl">
+            <DialogContent className="fixed left-[50vw] top-[30%] sm:top-[50%] z-[200] flex flex-col w-[90vw] max-w-[600px] h-[75vh] sm:h-auto sm:max-h-[85vh] !-translate-x-1/2 -translate-y-1/2 gap-0 border-0 shadow-2xl p-0 overflow-hidden rounded-xl bg-background outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]">
                 {/* Premium Header with Gradient */}
-                <div className="relative bg-gradient-to-br from-nexus-dark to-nexus-primary px-6 py-6 text-white overflow-hidden">
+                <div className="relative bg-gradient-to-br from-nexus-dark to-nexus-primary px-6 py-6 text-white overflow-hidden shrink-0">
                     <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
                     <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-20 w-20 rounded-full bg-black/20 blur-xl"></div>
 
@@ -167,7 +167,7 @@ export function AddProductDialog({
                     </DialogHeader>
                 </div>
 
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="px-6 py-6 space-y-5 bg-background">
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="px-6 py-6 space-y-5 bg-background overflow-y-auto">
                     <div className="grid grid-cols-2 gap-5">
                         <div className="space-y-2">
                             <Label htmlFor="sku" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
@@ -221,7 +221,7 @@ export function AddProductDialog({
                                 <DollarSign className="h-3.5 w-3.5 text-nexus-primary" /> Price
                             </Label>
                             <div className="relative">
-                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</div>
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₹</div>
                                 <Input
                                     id="price"
                                     type="number"
@@ -240,7 +240,7 @@ export function AddProductDialog({
                             <DollarSign className="h-3.5 w-3.5 text-nexus-primary" /> Purchase Cost
                         </Label>
                         <div className="relative">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</div>
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₹</div>
                             <Input
                                 id="purchasePrice"
                                 type="number"

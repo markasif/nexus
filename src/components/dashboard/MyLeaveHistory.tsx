@@ -40,7 +40,36 @@ export function MyLeaveHistory() {
         fetchLeaves();
     }, [user]);
 
-    if (loading) return <div className="text-sm text-muted-foreground">Loading history...</div>;
+    if (loading) {
+        return (
+            <Card className="h-full flex flex-col">
+                <CardHeader className="pb-3 border-b border-border/40">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-base font-medium flex items-center gap-2">
+                            <History className="h-4 w-4 text-muted-foreground" />
+                            Recent Requests
+                        </CardTitle>
+                        <div className="h-5 w-16 bg-gray-100 rounded-full animate-pulse" />
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0 flex-1">
+                    <div className="p-4 space-y-4">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="flex items-start justify-between animate-pulse">
+                                <div className="space-y-2 w-full">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-5 w-16 bg-gray-200 rounded px-1.5" />
+                                        <div className="h-4 w-24 bg-gray-200 rounded" />
+                                    </div>
+                                    <div className="h-3 w-32 bg-gray-100 rounded" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
 
     if (leaves.length === 0) return (
         <Card className="h-full">

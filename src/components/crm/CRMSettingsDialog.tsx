@@ -84,7 +84,7 @@ export function CRMSettingsDialog() {
                     <Settings className="h-5 w-5" />
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden gap-0 border-0 shadow-2xl">
+            <DialogContent className="w-[90vw] sm:max-w-md bg-white border-0 shadow-2xl p-0 gap-0 overflow-hidden rounded-xl">
                 {/* Premium Header */}
                 <div className="relative bg-gradient-to-br from-nexus-dark to-nexus-primary px-6 py-6 text-white overflow-hidden">
                     <div className="absolute top-0 right-0 -mt-2 -mr-2 h-20 w-20 rounded-full bg-white/10 blur-xl"></div>
@@ -114,23 +114,7 @@ export function CRMSettingsDialog() {
                         />
                     </div>
 
-                    <div className="space-y-3">
-                        <Label htmlFor="commission" className="font-semibold">Commission Rate (%)</Label>
-                        <div className="relative">
-                            <Input
-                                id="commission"
-                                type="number"
-                                className="pr-7 font-mono"
-                                value={formData.commission_percentage}
-                                onChange={(e) => setFormData({ ...formData, commission_percentage: Number(e.target.value) })}
-                                min="0"
-                                max="100"
-                                step="0.1"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">%</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">This percentage is applied to the deal value when closed won.</p>
-                    </div>
+                    {/* Commission Rate removed - Managed in Global Settings */}
 
                     <div className="space-y-3">
                         <Label htmlFor="target" className="font-semibold">Monthly Revenue Target</Label>

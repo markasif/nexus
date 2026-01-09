@@ -22,7 +22,18 @@ export function useLeads() {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            return data || [];
+
+            // Client-side sort: Pending Verification first
+            const sortedData = (data || []).sort((a: any, b: any) => {
+                const isAPending = a.status === 'pending-verification' || a.status === 'pending_verification';
+                const isBPending = b.status === 'pending-verification' || b.status === 'pending_verification';
+
+                if (isAPending && !isBPending) return -1;
+                if (!isAPending && isBPending) return 1;
+                return 0;
+            });
+
+            return sortedData;
         },
         enabled: !!user, // Only run if user exists
         staleTime: 1000 * 60 * 5, // Cache for 5 minutes

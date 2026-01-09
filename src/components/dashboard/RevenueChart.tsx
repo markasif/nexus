@@ -46,7 +46,7 @@ export function RevenueChart() {
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: 'hsl(var(--nexus-dark))', fontSize: 12 }}
-                tickFormatter={(value) => `$${value / 1000}k`}
+                tickFormatter={(value) => `₹${(value / 100000).toFixed(1)}L`}
               />
               <Tooltip
                 contentStyle={{
@@ -57,7 +57,7 @@ export function RevenueChart() {
                 }}
                 itemStyle={{ color: 'hsl(var(--nexus-dark))' }}
                 cursor={{ stroke: 'hsl(var(--nexus-soft))', strokeWidth: 1 }}
-                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']}
               />
               <Area
                 type="monotone"

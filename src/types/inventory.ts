@@ -8,4 +8,5 @@ export interface InventoryItem {
     lowStock: number;
     low_stock?: number; // Handling potential inconsistency
     status: 'in-stock' | 'low-stock' | 'out-of-stock';
+    archived?: boolean;
 }

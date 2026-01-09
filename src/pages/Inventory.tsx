@@ -88,6 +88,7 @@ export default function Inventory() {
       const { data, error } = await supabase
         .from('inventory')
         .select('*')
+        .eq('archived', false) // Filter out archived items
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -121,15 +122,16 @@ export default function Inventory() {
 
   const handleDeleteProduct = async (sku: string) => {
     try {
+      // Soft Delete (Archive)
       const { error } = await supabase
         .from('inventory')
-        .delete()
+        .update({ archived: true })
         .eq('sku', sku);
 
       if (error) throw error;
 
       setItems(items.filter(item => item.sku !== sku));
-      toast.success('Product deleted successfully');
+      toast.success('Product archived successfully');
     } catch (error: any) {
       console.error('Error deleting product:', error);
       toast.error('Failed to delete product');
@@ -257,9 +259,9 @@ export default function Inventory() {
           <TabsContent value="catalog" className="space-y-8 mt-8">
             {/* Stats */}
             <ScrollReveal width="100%">
-              < div className="grid gap-6 sm:grid-cols-4" >
+              <div className="grid grid-cols-2 gap-4 w-full sm:w-full sm:max-w-none sm:grid-cols-4 sm:gap-6">
                 <Card variant="kpi">
-                  <CardContent className="flex items-center gap-4 p-6">
+                  <CardContent className="flex items-center gap-4 p-4 sm:p-6">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
                       <Package className="h-6 w-6" />
                     </div>
@@ -270,7 +272,7 @@ export default function Inventory() {
                   </CardContent>
                 </Card>
                 <Card variant="kpi">
-                  <CardContent className="flex items-center gap-4 p-6">
+                  <CardContent className="flex items-center gap-4 p-4 sm:p-6">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10 text-success">
                       <TrendingUp className="h-6 w-6" />
                     </div>
@@ -281,7 +283,7 @@ export default function Inventory() {
                   </CardContent>
                 </Card>
                 <Card variant="kpi">
-                  <CardContent className="flex items-center gap-4 p-6">
+                  <CardContent className="flex items-center gap-4 p-4 sm:p-6">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10 text-warning">
                       <AlertTriangle className="h-6 w-6" />
                     </div>
@@ -292,7 +294,7 @@ export default function Inventory() {
                   </CardContent>
                 </Card>
                 <Card variant="kpi">
-                  <CardContent className="flex items-center gap-4 p-6">
+                  <CardContent className="flex items-center gap-4 p-4 sm:p-6">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
                       <Package className="h-6 w-6" />
                     </div>
@@ -308,92 +310,95 @@ export default function Inventory() {
             {/* Inventory Table */}
             <ScrollReveal width="100%">
               < Card >
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle>Product Catalog</CardTitle>
-                  <div className="relative">
+                  <div className="relative w-full sm:w-auto">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="Search products..."
-                      className="pl-9 w-64"
+                      className="pl-9 w-full sm:w-64"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>SKU</TableHead>
-                        <TableHead>Product Name</TableHead>
-                        <TableHead>Category</TableHead>
-                        {isAdmin && <TableHead>Price</TableHead>}
-                        <TableHead>Stock</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredItems.map((item) => (
-                        <TableRow key={item.sku}>
-                          <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                          <TableCell className="font-medium">{item.name}</TableCell>
-                          <TableCell>{item.category}</TableCell>
-                          {isAdmin && <TableCell>${item.price.toLocaleString()}</TableCell>}
-                          <TableCell>
-                            <span
-                              className={
-                                item.stock <= item.lowStock
-                                  ? 'font-semibold text-warning'
-                                  : ''
-                              }
-                            >
-                              {item.stock}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={statusVariant[item.status]}>
-                              {statusLabel[item.status]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
-                                {isAdmin ? (
-                                  <>
-                                    <DropdownMenuItem onClick={() => handleEditProduct(item)} className="cursor-pointer">
-                                      <Pencil className="mr-2 h-4 w-4" /> Edit Product
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleDeleteProduct(item.sku)} className="text-destructive focus:text-destructive cursor-pointer">
-                                      <Trash2 className="mr-2 h-4 w-4" /> Delete Product
-                                    </DropdownMenuItem>
-                                  </>
-                                ) : (
-                                  <>
-                                    <DropdownMenuItem onClick={() => handleRequestRestock(item)} className="cursor-pointer text-blue-600 focus:text-blue-700">
-                                      <Box className="mr-2 h-4 w-4" /> Request Restock
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleReportIssue(item)} className="cursor-pointer text-orange-600 focus:text-orange-700">
-                                      <AlertTriangle className="mr-2 h-4 w-4" /> Report Issue
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>SKU</TableHead>
+                          <TableHead>Product Name</TableHead>
+                          <TableHead>Category</TableHead>
+                          {isAdmin && <TableHead>Price</TableHead>}
+                          <TableHead>Stock</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredItems.map((item) => (
+                          <TableRow key={item.sku}>
+                            <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell>{item.category}</TableCell>
+                            {isAdmin && <TableCell>₹{item.price.toLocaleString()}</TableCell>}
+                            <TableCell>
+                              <span
+                                className={
+                                  item.stock <= item.lowStock
+                                    ? 'font-semibold text-warning'
+                                    : ''
+                                }
+                              >
+                                {item.stock}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={statusVariant[item.status]} className="whitespace-nowrap">
+                                {statusLabel[item.status]}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
+                                  {isAdmin ? (
+                                    <>
+                                      <DropdownMenuItem onClick={() => handleEditProduct(item)} className="cursor-pointer">
+                                        <Pencil className="mr-2 h-4 w-4" /> Edit Product
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => handleDeleteProduct(item.sku)} className="text-destructive focus:text-destructive cursor-pointer">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete Product
+                                      </DropdownMenuItem>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <DropdownMenuItem onClick={() => handleRequestRestock(item)} className="cursor-pointer text-blue-600 focus:text-blue-700">
+                                        <Box className="mr-2 h-4 w-4" /> Request Restock
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleReportIssue(item)} className="cursor-pointer text-orange-600 focus:text-orange-700">
+                                        <AlertTriangle className="mr-2 h-4 w-4" /> Report Issue
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card >
             </ScrollReveal>

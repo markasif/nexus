@@ -21,16 +21,137 @@ export function useAttendance() {
     const [todaySessions, setTodaySessions] = useState<AttendanceRecord[]>([]);
     const [activeSession, setActiveSession] = useState<AttendanceRecord | null>(null);
     const [history, setHistory] = useState<AttendanceRecord[]>([]);
+    const [stats, setStats] = useState({ percentage: 0, totalPresent: 0, totalWorkingDays: 0, onTimePercentage: 100 });
+    const [dailyStats, setDailyStats] = useState<any[]>([]);
+    const [leaveBalances, setLeaveBalances] = useState({ casual: 12, sick: 10, privilege: 15 });
 
     useEffect(() => {
         if (user) {
             checkAndFixPreviousSessions();
             fetchTodaySessions();
             fetchHistory();
+            fetchStats();
+            fetchLeaveBalances();
         } else {
             setLoading(false);
         }
     }, [user]);
+
+    const fetchLeaveBalances = async () => {
+        if (!user) return;
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('leave_balance_casual, leave_balance_sick, leave_balance_privilege')
+                .eq('id', user.id)
+                .single();
+
+            if (error) {
+                // If column doesn't exist yet, we stick to defaults
+                console.warn("Could not fetch leave balances (cols might be missing)", error);
+            }
+
+            if (data) {
+                setLeaveBalances({
+                    casual: data.leave_balance_casual || 12,
+                    sick: data.leave_balance_sick || 10,
+                    privilege: data.leave_balance_privilege || 15
+                });
+            }
+        } catch (error) {
+            console.error("Error fetching leave balances:", error);
+        }
+    };
+
+    const fetchStats = async () => {
+        if (!user) return;
+        try {
+            // 1. Get ALL attendance records for this user
+            const { data: allRecords, error } = await supabase
+                .from('attendance')
+                .select('date, clock_in, clock_out')
+                .eq('employee_id', user.id);
+
+            if (error) throw error;
+            if (!allRecords) return;
+
+            // 2. Group by Date to sum duration
+            const dailyMap = new Map<string, number>(); // date -> total hours
+            const dailyMapObj: Record<string, number> = {};
+
+            allRecords.forEach(r => {
+                if (!r.clock_in) return;
+                const time = new Date(r.clock_in);
+                const start = time.getTime();
+                const end = r.clock_out ? new Date(r.clock_out).getTime() : new Date().getTime();
+                const durationHours = (end - start) / (1000 * 60 * 60);
+
+                const current = dailyMap.get(r.date) || 0;
+                dailyMap.set(r.date, current + durationHours);
+                dailyMapObj[r.date] = current + durationHours;
+            });
+
+            // 3. Calculate Weekly Stats (Flexible Model)
+            const today = new Date();
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            let weeklyTotalHours = 0;
+            let weeklyWorkingDaysPassed = 0;
+            const dailyStatsArray: any[] = [];
+
+            // Iterate 30 days back for table history
+            const historyStart = new Date();
+            historyStart.setDate(today.getDate() - 30);
+
+            // Generate stat objects
+            dailyMap.forEach((hours, dateStr) => {
+                const date = new Date(dateStr);
+
+                // Weekly Sum (only for current week)
+                if (date >= startOfWeek && date <= today) {
+                    weeklyTotalHours += hours;
+                    if (date.getDay() !== 0 && date.getDay() !== 6) {
+                        weeklyWorkingDaysPassed++;
+                    }
+                }
+
+                // Determine "Flexible" Status
+                let status: 'Regular' | 'Overtime' | 'Short' = 'Short';
+                if (hours >= 8.5) status = 'Overtime';
+                else if (hours >= 4) status = 'Regular';
+
+                dailyStatsArray.push({
+                    date: dateStr,
+                    totalHours: hours,
+                    status
+                });
+            });
+
+            // 4. Time Bank Calculation
+            // Target: 8 hours per working day passed this week
+            const expectedHours = Math.max(0, weeklyWorkingDaysPassed * 8);
+            const timeBank = weeklyTotalHours - expectedHours; // +ve = OT, -ve = Debt
+
+            // 5. Update State
+            // Re-using "percentage" to show Weekly Goal Progress (capped at 100%)
+            const weeklyGoal = 40;
+            const progressPercent = Math.min(100, Math.round((weeklyTotalHours / weeklyGoal) * 100));
+
+            setStats({
+                percentage: progressPercent, // Now represents Weekly Goal
+                totalPresent: weeklyTotalHours, // Actually Total Weekly Hours
+                totalWorkingDays: expectedHours, // Actually Expected Hours
+                onTimePercentage: timeBank // Actually Time Bank balance
+            });
+
+            setDailyStats(dailyStatsArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+        } catch (error) {
+            console.error("Error fetching stats:", error);
+        }
+    };
 
     const checkAndFixPreviousSessions = async () => {
         if (!user) return;
@@ -101,7 +222,7 @@ export function useAttendance() {
                 .from('attendance')
                 .select('*')
                 .eq('employee_id', user.id)
-                .order('date', { ascending: false })
+                .order('clock_in', { ascending: false })
                 .limit(30);
 
             if (error) throw error;
@@ -219,5 +340,8 @@ export function useAttendance() {
         clockOut,
         totalDurationHours,
         history,
+        stats,
+        dailyStats,
+        leaveBalances
     };
 }

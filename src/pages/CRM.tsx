@@ -179,7 +179,7 @@ export default function CRM() {
                             </Badge>
                             <p className="text-2xl font-bold">{count}</p>
                             <p className="text-xs text-muted-foreground">
-                              ${value.toLocaleString()}
+                              ₹{value.toLocaleString()}
                             </p>
                           </CardContent>
                         </Card>
@@ -192,13 +192,13 @@ export default function CRM() {
                   {/* Leads List - Takes up 2/3 */}
                   <div className="lg:col-span-2 h-[600px]">
                     <Card className="h-full flex flex-col">
-                      <CardHeader className="flex flex-row items-center justify-between flex-none">
+                      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between flex-none">
                         <CardTitle>Active Leads</CardTitle>
-                        <div className="relative">
+                        <div className="relative w-full sm:w-auto">
                           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                           <Input
                             placeholder="Search leads..."
-                            className="pl-9 w-64"
+                            className="pl-9 w-full sm:w-64"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                           />
@@ -242,7 +242,7 @@ export default function CRM() {
 
                                   <div className="flex items-center gap-6">
                                     <div className="text-right hidden sm:block">
-                                      <p className="text-lg font-bold text-foreground">${lead.value?.toLocaleString() || 0}</p>
+                                      <p className="text-lg font-bold text-foreground">₹{lead.value?.toLocaleString() || 0}</p>
                                     </div>
 
                                     <DropdownMenu>
@@ -301,7 +301,8 @@ export default function CRM() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Main Chart Area */}
                   <div className="lg:col-span-2 space-y-6">
-                    <CRMAnalytics />
+                    {/* Pass a timestamp or random trigger to force refresh when leads updates */}
+                    <CRMAnalytics lastUpdated={leads.length + (new Date().getTime())} />
                   </div>
                   {/* Leaderboard Area */}
                   <div>

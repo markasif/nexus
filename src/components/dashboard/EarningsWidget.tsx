@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp, Loader2 } from 'lucide-react';
+import { DollarSign, IndianRupee, TrendingUp, Loader2 } from 'lucide-react';
 import { useEarnings } from '@/hooks/useEarnings';
 
 export function EarningsWidget() {
@@ -8,8 +8,41 @@ export function EarningsWidget() {
 
   if (loading) {
     return (
-      <Card className="h-full flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <Card className="h-full">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-lg">My Earnings</CardTitle>
+          <div className="h-5 w-24 animate-pulse rounded-full bg-gray-200" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Big Card Skeleton */}
+            <div className="flex items-center justify-between rounded-xl bg-gray-100 p-4 animate-pulse">
+              <div className="space-y-2">
+                <div className="h-3 w-24 bg-gray-300 rounded" />
+                <div className="h-8 w-32 bg-gray-300 rounded" />
+              </div>
+              <div className="h-12 w-12 rounded-full bg-gray-300" />
+            </div>
+
+            {/* Grid Skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+                <div className="h-3 w-16 bg-gray-100 rounded animate-pulse" />
+                <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+                <div className="h-3 w-16 bg-gray-100 rounded animate-pulse" />
+                <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
+              </div>
+            </div>
+
+            {/* Bottom Box Skeleton */}
+            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 space-y-2">
+              <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+              <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
+        </CardContent>
       </Card>
     )
   }
@@ -38,21 +71,21 @@ export function EarningsWidget() {
           <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-primary to-nexus-primary p-4 text-primary-foreground">
             <div>
               <p className="text-sm opacity-80">Total Earnings (YTD)</p>
-              <p className="text-3xl font-bold">${totalEarnings.toLocaleString()}</p>
+              <p className="text-3xl font-bold">₹{totalEarnings.toLocaleString()}</p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-foreground/20">
-              <DollarSign className="h-6 w-6" />
+              <IndianRupee className="h-6 w-6" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground">Base Salary</p>
-              <p className="text-xl font-semibold">${baseSalary.toLocaleString()}</p>
+              <p className="text-xl font-semibold">₹{baseSalary.toLocaleString()}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground">Commission</p>
-              <p className="text-xl font-semibold text-success">${commissionEarned.toLocaleString()}</p>
+              <p className="text-xl font-semibold text-success">₹{commissionEarned.toLocaleString()}</p>
             </div>
           </div>
 
@@ -61,7 +94,7 @@ export function EarningsWidget() {
               <TrendingUp className="h-4 w-4 text-warning" />
               <p className="text-sm font-medium text-warning">Pending Commission</p>
             </div>
-            <p className="mt-1 text-xl font-semibold">${commissionPending.toLocaleString()}</p>
+            <p className="mt-1 text-xl font-semibold">₹{commissionPending.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Awaiting deal approval</p>
           </div>
         </div>

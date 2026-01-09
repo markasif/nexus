@@ -129,7 +129,7 @@ export function CreateEmployeeDialog({ onEmployeeCreated }: { onEmployeeCreated?
                     Add Employee
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[550px] overflow-hidden p-0 gap-0 border-0 shadow-2xl">
+            <DialogContent className="w-[90vw] sm:max-w-[550px] overflow-hidden p-0 gap-0 border-0 shadow-2xl rounded-xl">
                 {/* Premium Header with Deep Ocean Gradient */}
                 <div className="relative bg-gradient-to-br from-nexus-dark to-nexus-primary px-6 py-6 text-white overflow-hidden">
                     <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>

@@ -15,9 +15,10 @@ const stageColors: Record<string, "default" | "secondary" | "destructive" | "out
     'closed-lost': 'destructive'
 };
 
+import { Link } from "react-router-dom";
+
 export function MyLeadsWidget() {
     const { leads, loading } = useLeads();
-    const navigate = useNavigate();
 
     // Filter for active leads (excluding closed ones if desired, or just show all)
     // Showing all for now sorted by recent
@@ -35,20 +36,35 @@ export function MyLeadsWidget() {
                         {leads.length} leads assigned to you
                     </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/crm')}>
-                    View All <ChevronRight className="ml-1 h-4 w-4" />
+                <Button variant="ghost" size="sm" asChild>
+                    <Link to="/crm">
+                        View All <ChevronRight className="ml-1 h-4 w-4" />
+                    </Link>
                 </Button>
             </CardHeader>
             <CardContent className="flex-1 min-h-0">
                 <ScrollArea className="h-[250px] pr-4">
                     <div className="space-y-4">
                         {loading ? (
-                            <p className="text-center text-sm text-muted-foreground py-8">Loading leads...</p>
+                            <div className="space-y-4 pt-2">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="flex flex-col gap-3 rounded-lg border border-border/50 p-3 animate-pulse">
+                                        <div className="flex items-center justify-between">
+                                            <div className="h-5 w-32 bg-gray-200 rounded" />
+                                            <div className="h-5 w-16 bg-gray-100 rounded" />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="h-4 w-24 bg-gray-100 rounded" />
+                                            <div className="h-4 w-12 bg-gray-100 rounded" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         ) : recentLeads.length === 0 ? (
                             <div className="text-center py-8">
                                 <p className="text-muted-foreground">No assigned leads yet.</p>
-                                <Button variant="link" className="mt-2" onClick={() => navigate('/crm')}>
-                                    Explore CRM
+                                <Button variant="link" className="mt-2" asChild>
+                                    <Link to="/crm">Explore CRM</Link>
                                 </Button>
                             </div>
                         ) : (

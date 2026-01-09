@@ -173,10 +173,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    setIsLoading(true);
-    await supabase.auth.signOut();
-    setUser(null);
-    setIsLoading(false);
+    try {
+      setIsLoading(true);
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Logout error (suppressed):", error);
+    } finally {
+      // Always clear local state
+      setUser(null);
+      setIsLoading(false);
+    }
   };
 
   const refreshProfile = async () => {

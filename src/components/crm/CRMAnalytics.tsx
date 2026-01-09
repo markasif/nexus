@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, TrendingUp, Target, Users } from "lucide-react";
 
-export function CRMAnalytics() {
+export function CRMAnalytics({ lastUpdated }: { lastUpdated?: number }) {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -34,7 +34,66 @@ export function CRMAnalytics() {
             const { data: productsData } = await supabase.rpc('get_product_performance');
             const { data: funnelData } = await supabase.rpc('get_sales_funnel');
             const { data: trendData } = await supabase.rpc('get_revenue_trend');
-            const { data: sourceData } = await supabase.rpc('get_lead_sources');
+
+            // Manual fetch for sources to bypass potential old RPC versions
+            const { data: leadsData } = await supabase
+                .from('leads')
+                .select('source')
+                .neq('status', 'archived');
+
+            // Standardize Keys (matching CreateLeadDialog values)
+            const PREDEFINED_MAP: Record<string, string> = {
+                'website': 'Website',
+                'linkedin': 'LinkedIn',
+                'referral': 'Referral',
+                'cold-call': 'Cold Call',
+                'ad': 'Advertisement',
+                'other': 'Other'
+            };
+
+            // Initialize counts for all predefined sources
+            const sourceCounts: Record<string, number> = {
+                'Website': 0,
+                'LinkedIn': 0,
+                'Referral': 0,
+                'Cold Call': 0,
+                'Advertisement': 0,
+                'Other': 0
+            };
+
+            (leadsData || []).forEach(l => {
+                let s = (l.source || 'Other').toLowerCase().trim();
+
+                // Map common variations
+                if (s === 'ad' || s === 'ads') s = 'ad';
+                if (s === 'advertisement') s = 'ad';
+
+                // Find matching Label
+                let label = 'Other';
+
+                // 1. Try exact key match
+                let matchingKey = Object.keys(PREDEFINED_MAP).find(k => k === s);
+
+                // 2. Try value match (e.g. if DB has 'Advertisement' instead of 'ad') (Case insensitive)
+                if (!matchingKey) {
+                    matchingKey = Object.keys(PREDEFINED_MAP).find(k => PREDEFINED_MAP[k].toLowerCase() === s);
+                }
+
+                if (matchingKey) {
+                    label = PREDEFINED_MAP[matchingKey];
+                } else {
+                    // Capitalize custom sources
+                    label = s.charAt(0).toUpperCase() + s.slice(1);
+                    if (!sourceCounts[label]) sourceCounts[label] = 0;
+                }
+
+                sourceCounts[label] = (sourceCounts[label] || 0) + 1;
+            });
+
+            // Convert to array
+            const manualSourceData = Object.entries(sourceCounts)
+                .map(([name, value]) => ({ source: name, count: value }))
+                .sort((a, b) => b.count - a.count);
 
             if (statsData) {
                 setStats({
@@ -42,13 +101,13 @@ export function CRMAnalytics() {
                     top_products: productsData || [],
                     funnel: funnelData || [],
                     trend: trendData || [],
-                    sources: sourceData || []
+                    sources: manualSourceData || []
                 });
             }
             setLoading(false);
         };
         fetchStats();
-    }, []);
+    }, [lastUpdated]);
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-nexus-primary" /></div>;
 
@@ -68,9 +127,9 @@ export function CRMAnalytics() {
                         <TrendingUp className="h-4 w-4 text-emerald-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">${stats?.total_revenue?.toLocaleString()}</div>
+                        <div className="text-2xl font-bold">₹{stats?.total_revenue?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            {revenueProgress.toFixed(1)}% of ${stats?.monthly_target?.toLocaleString()} Goal
+                            {revenueProgress.toFixed(1)}% of ₹{stats?.monthly_target?.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Goal
                         </p>
                         <div className="w-full bg-gray-200 rounded-full h-1.5 mt-3">
                             <div
@@ -87,7 +146,7 @@ export function CRMAnalytics() {
                         <Target className="h-4 w-4 text-blue-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">${stats?.pipeline_forecast?.toLocaleString()}</div>
+                        <div className="text-2xl font-bold">₹{stats?.pipeline_forecast?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Projected from open negotiations
                         </p>
@@ -108,34 +167,60 @@ export function CRMAnalytics() {
                 </Card>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:h-[450px]">
+            {/* Main Stats Grid */}
+            <div className="grid gap-4 md:grid-cols-2 lg:h-[600px]">
                 {/* Left Column: Lead Sources */}
                 <Card className="h-full flex flex-col">
                     <CardHeader>
                         <CardTitle>Lead Sources</CardTitle>
                         <CardDescription>Where are your leads coming from?</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-1 min-h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={stats?.sources}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="count"
-                                    nameKey="source"
-                                >
-                                    {stats?.sources?.map((entry: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip formatter={(value, name: any) => [value, name.charAt(0).toUpperCase() + name.slice(1)]} />
-                                <Legend formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)} />
-                            </PieChart>
-                        </ResponsiveContainer>
+                    <CardContent className="flex-1 min-h-[300px] flex flex-col p-4">
+                        <div className="flex-1 min-h-[200px] -mt-4">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={stats?.sources}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={55}
+                                        outerRadius={75}
+                                        paddingAngle={5}
+                                        dataKey="count"
+                                        nameKey="source"
+                                        stroke="none"
+                                    >
+                                        {stats?.sources?.map((entry: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        formatter={(value, name: any) => [value, name.charAt(0).toUpperCase() + name.slice(1)]}
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        {/* Breakdown List - Refined Design */}
+                        <div className="mt-2 space-y-2 overflow-y-auto max-h-[160px] pr-2 custom-scrollbar">
+                            {stats?.sources?.map((source: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between text-xs group hover:bg-slate-50 p-1.5 rounded-md transition-colors">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                                        <span className="font-medium text-slate-600 group-hover:text-slate-900">{source.source}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-slate-400 font-medium">{source.count}</span>
+                                        <span className="font-bold w-10 text-right text-slate-700">
+                                            {stats.sources.reduce((acc: any, curr: any) => acc + curr.count, 0) > 0
+                                                ? ((source.count / stats.sources.reduce((acc: any, curr: any) => acc + curr.count, 0)) * 100).toFixed(0) + '%'
+                                                : '0%'}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -143,10 +228,10 @@ export function CRMAnalytics() {
                 <Card className="h-full flex flex-col overflow-hidden">
                     <Tabs defaultValue="products" className="flex-1 flex flex-col">
                         <div className="px-6 pt-6 pb-2">
-                            <TabsList className="w-full grid grid-cols-3">
-                                <TabsTrigger value="products">Top Products</TabsTrigger>
-                                <TabsTrigger value="funnel">Sales Funnel</TabsTrigger>
-                                <TabsTrigger value="trend">Revenue Trend</TabsTrigger>
+                            <TabsList className="w-full flex overflow-x-auto sm:grid sm:grid-cols-3 no-scrollbar">
+                                <TabsTrigger value="products" className="min-w-[120px]">Top Products</TabsTrigger>
+                                <TabsTrigger value="funnel" className="min-w-[120px]">Sales Funnel</TabsTrigger>
+                                <TabsTrigger value="trend" className="min-w-[120px]">Revenue Trend</TabsTrigger>
                             </TabsList>
                         </div>
 
@@ -162,7 +247,7 @@ export function CRMAnalytics() {
                                                     <p className="text-sm font-medium leading-none">{product.name}</p>
                                                     <p className="text-xs text-muted-foreground">{product.total_sold} units sold</p>
                                                 </div>
-                                                <div className="font-bold">${product.total_revenue?.toLocaleString()}</div>
+                                                <div className="font-bold">₹{product.total_revenue?.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
                                             </div>
                                         ))
                                     ) : <div className="text-xs text-muted-foreground py-2">No sales data</div>}
@@ -177,7 +262,7 @@ export function CRMAnalytics() {
                                                     <p className="text-xs text-emerald-600 font-medium">+{((product.total_profit / product.total_revenue) * 100).toFixed(0)}% margin</p>
                                                 </div>
                                                 <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                                                    +${product.total_profit?.toLocaleString()}
+                                                    +₹{product.total_profit?.toLocaleString()}
                                                 </Badge>
                                             </div>
                                         ))
@@ -187,7 +272,7 @@ export function CRMAnalytics() {
                         </TabsContent>
 
                         {/* Sales Funnel Tab */}
-                        <TabsContent value="funnel" className="flex-1 p-6 pt-2 m-0 mt-0 h-full">
+                        <TabsContent value="funnel" className="flex-1 p-6 pt-2 m-0 mt-0 h-full min-h-[350px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={stats?.funnel} layout="vertical" margin={{ left: 20, right: 20 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -202,7 +287,7 @@ export function CRMAnalytics() {
                         </TabsContent>
 
                         {/* Revenue Trend Tab */}
-                        <TabsContent value="trend" className="flex-1 p-6 pt-2 m-0 mt-0 h-full">
+                        <TabsContent value="trend" className="flex-1 p-6 pt-2 m-0 mt-0 h-full min-h-[350px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={stats?.trend}>
                                     <defs>
@@ -213,8 +298,8 @@ export function CRMAnalytics() {
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                     <XAxis dataKey="month_label" />
-                                    <YAxis tickFormatter={(val) => val >= 1000 ? `$${val / 1000}k` : `$${val}`} />
-                                    <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']} />
+                                    <YAxis tickFormatter={(val) => val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${val}`} />
+                                    <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']} />
                                     <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" />
                                 </AreaChart>
                             </ResponsiveContainer>

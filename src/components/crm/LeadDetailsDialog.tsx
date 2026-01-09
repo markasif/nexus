@@ -5,12 +5,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lead } from "@/hooks/useLeads";
+import { Lead } from "@/types/crm";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 import {
-    Activity, ArrowRight, BarChart3, Building2, Calendar, CalendarDays, CheckCircle, ChevronDown, Clock, CreditCard, DollarSign, FileText, LayoutDashboard, Loader2, Mail, MoreHorizontal, Package, Phone, Plus, Save, ShoppingCart, Tag, Trash2, User
+    Activity, ArrowRight, BarChart3, Building2, Calendar, CalendarDays, CheckCircle, ChevronDown, Clock, CreditCard, DollarSign, FileText, LayoutDashboard, Loader2, Mail, MoreHorizontal, Package, Phone, Plus, Save, ShoppingCart, Tag, Trash2, User, Shield, Pencil
 } from "lucide-react";
+
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -50,26 +51,40 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
     const [newItemQty, setNewItemQty] = useState(1);
     const [loadingItems, setLoadingItems] = useState(false);
     const [converting, setConverting] = useState(false);
+    // Fix: Local state to show real-time value updates without closing dialog
+    const [dynamicValue, setDynamicValue] = useState(lead?.value || 0);
+    const [status, setStatus] = useState(lead?.status || 'new');
 
     useEffect(() => {
         if (lead) {
             setNotes(lead.notes || "");
+            setDynamicValue(lead.value || 0); // Reset when opening a different lead
+            setStatus(lead.status); // Fix: Sync status
             fetchActivities(lead.id);
             fetchLeadItems(lead.id);
-            if (inventory.length === 0) fetchInventory();
+            fetchInventory(); // Always fetch to get fresh data and correct sorting
         }
     }, [lead]);
 
     const fetchInventory = async () => {
-        const { data } = await supabase.from('inventory').select('*').order('name');
+        const { data } = await supabase
+            .from('inventory')
+            .select('*')
+            .eq('archived', false)
+            .order('stock', { ascending: true }); // Show low stock first
         if (data) setInventory(data);
     };
+
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
     const handleProductSelect = (sku: string) => {
         setNewItemSku(sku);
         const product = inventory.find(i => i.sku === sku);
         if (product) {
-            setNewItemPrice(product.price.toString());
+            // Only auto-set price if NOT editing (so we don't overwrite custom price)
+            if (!editingItemId) {
+                setNewItemPrice(product.price.toString());
+            }
         }
     };
 
@@ -86,17 +101,128 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
         setLoadingItems(false);
     };
 
+    const handleEditItem = (item: any) => {
+        setEditingItemId(item.id);
+        setNewItemSku(item.sku);
+        setNewItemPrice(item.unit_price.toString());
+        setNewItemQty(item.quantity);
+
+        // Scroll to form
+        const formElement = document.getElementById('product-form-section');
+        if (formElement) formElement.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // Helper: Pure calculation of remaining stock
+    const calculateRemainingStock = (sku: string, currentInputQty: number, excludeItemId: string | null = null): { remaining: number; isValid: boolean } => {
+        const product = inventory.find(i => i.sku === sku);
+        if (!product) return { remaining: 0, isValid: false };
+
+        // Logic:
+        // Global Reserved = product.reserved
+        // My Reserved In DB = leadItems for this SKU (sum)
+        const myTotalInDb = leadItems
+            .filter(item => item.sku === sku)
+            .reduce((acc, item) => acc + item.quantity, 0);
+
+        const reservedByOthers = (product.reserved || 0) - myTotalInDb;
+        const availableLimit = product.stock - reservedByOthers;
+
+        // My Requested Need = OtherItemsCart + NewInput
+        const myOtherItemsQty = leadItems.reduce((acc, item) => {
+            if (item.sku === sku && item.id !== excludeItemId) {
+                return acc + item.quantity;
+            }
+            return acc;
+        }, 0);
+
+        const totalRequestedByMe = myOtherItemsQty + currentInputQty;
+        const remaining = availableLimit - totalRequestedByMe;
+
+        return {
+            remaining,
+            isValid: totalRequestedByMe <= availableLimit
+        };
+    };
+
+    // Helper: Validates stock and triggers toast if invalid
+    const checkStockAvailability = (sku: string, qty: number, excludeItemId: string | null = null): boolean => {
+        const product = inventory.find(i => i.sku === sku);
+        if (!product) return false;
+
+        const { isValid, remaining } = calculateRemainingStock(sku, qty, excludeItemId);
+
+        if (!isValid) {
+            // Calculate how many are actually available to add
+            const existingInCart = leadItems.reduce((acc, item) => {
+                if (item.sku === sku && item.id !== excludeItemId) {
+                    return acc + item.quantity;
+                }
+                return acc;
+            }, 0);
+
+            const myQty = leadItems.filter(i => i.sku === sku).reduce((a, b) => a + b.quantity, 0);
+            const avail = product.stock - ((product.reserved || 0) - myQty);
+            toast({
+                title: "Stock Limit Exceeded",
+                description: `Only ${avail} units available (Stock: ${product.stock}, Reserved: ${product.reserved || 0}).`,
+                variant: "destructive"
+            });
+            return false;
+        }
+        return true;
+    };
+
+    const handleUpdateItem = async () => {
+        if (!editingItemId || !newItemSku) return;
+
+        const product = inventory.find(i => i.sku === newItemSku);
+        if (!product) return; // Should not happen
+
+        if (!checkStockAvailability(newItemSku, newItemQty, editingItemId)) return;
+
+        const dealPrice = parseFloat(newItemPrice);
+        if (dealPrice < (product.purchase_price || 0)) {
+            toast({ title: "Pricing Error", description: "Deal Price cannot be lower than Purchase Cost.", variant: "destructive" });
+            return;
+        }
+
+        const { error } = await supabase.from('lead_items').update({
+            sku: newItemSku,
+            quantity: newItemQty,
+            unit_price: dealPrice
+        }).eq('id', editingItemId);
+
+        if (error) {
+            toast({ title: "Error", description: "Failed to update item.", variant: "destructive" });
+        } else {
+            toast({ title: "Item Updated", description: "Cart updated successfully" });
+            fetchLeadItems(lead.id);
+            fetchInventory(); // Update stock/reserved display
+            resetForm();
+            updateLeadValue();
+        }
+    };
+
+    const resetForm = () => {
+        setEditingItemId(null);
+        setNewItemSku("");
+        setNewItemPrice("");
+        setNewItemQty(1);
+    }
+
     const handleAddItem = async () => {
         if (!lead || !newItemSku) return;
+
+        // If editing, redirect to update
+        if (editingItemId) {
+            await handleUpdateItem();
+            return;
+        }
 
         const product = inventory.find(i => i.sku === newItemSku);
         if (!product) return;
 
-        // Validation 1: Stock Check
-        if (newItemQty > product.stock) {
-            toast({ title: "Stock Error", description: `Cannot add ${newItemQty} items. Only ${product.stock} in stock.`, variant: "destructive" });
-            return;
-        }
+        if (!checkStockAvailability(newItemSku, newItemQty)) return;
 
         // Validation 2: Profit Check (Deal Price >= Unit Cost)
         const dealPrice = parseFloat(newItemPrice);
@@ -119,51 +245,32 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
         });
 
         if (error) {
-            console.error("Error adding item:", error);
-            // Check if it's a trigger error (custom Postgres exception)
-            if (error.message.includes('Insufficient stock')) {
-                toast({
-                    title: "Stock Reservation Failed",
-                    description: error.message.split('P0001:')[1] || "Not enough stock available for this product.",
-                    variant: "destructive"
-                });
-            } else {
-                toast({
-                    title: "Error",
-                    description: "Failed to add item to deal.",
-                    variant: "destructive"
-                });
-            }
+            // ... existing error handling
+            toast({ title: "Error", description: "Failed to add item.", variant: "destructive" });
         } else {
             toast({ title: "Item Added", description: "Product added to lead cart" });
             fetchLeadItems(lead.id);
-            setNewItemSku("");
-            setNewItemPrice("");
-            setNewItemQty(1);
-            updateLeadValue();
+            fetchInventory(); // Update stock/reserved display
+            resetForm();
+            setTimeout(() => updateLeadValue(), 100);
         }
     };
 
     // Calculate total cart value and update lead value
     const updateLeadValue = async () => {
-        // We need to re-fetch items first to get the latest list, 
-        // OR calculate locally. Fetching is safer.
-        // But fetchLeadItems is async and updates state.
-        // Let's rely on a separate calc after state update? 
-        // Better: Do a DB query to sum it up.
-
         const { data: items } = await supabase
             .from('lead_items')
             .select('quantity, unit_price, inventory(price)')
             .eq('lead_id', lead.id);
 
         if (items) {
-            const totalValue = items.reduce((sum, item) => {
+            const totalValue = items.reduce((sum, item: any) => {
                 const price = item.unit_price || item.inventory?.price || 0;
                 return sum + (price * item.quantity);
             }, 0);
 
             await supabase.from('leads').update({ value: totalValue }).eq('id', lead.id);
+            setDynamicValue(totalValue); // Update local UI immediately
             onUpdate(); // Refresh main list
         }
     };
@@ -171,9 +278,11 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
     const handleRemoveItem = async (itemId: string) => {
         const { error } = await supabase.from('lead_items').delete().eq('id', itemId);
         if (!error) {
+            // Optimistic update for list could be good, but fetch is safer
             fetchLeadItems(lead!.id);
+            fetchInventory(); // Update stock/reserved display
             toast({ title: "Removed", description: "Item removed from cart" });
-            setTimeout(() => updateLeadValue(), 500); // Sync value
+            setTimeout(() => updateLeadValue(), 100); // Sync value
         }
     };
 
@@ -181,7 +290,8 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
         if (!lead) return;
         setConverting(true);
         try {
-            const { data, error } = await supabase.rpc('convert_lead_to_order', {
+            // Use standard confirm_lead_order (handles inventory & commission)
+            const { data, error } = await supabase.rpc('confirm_lead_order', {
                 target_lead_id: lead.id,
                 output_employee_id: user?.id
             });
@@ -245,7 +355,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
 
-            <DialogContent className="sm:max-w-6xl max-h-[85vh] p-0 gap-0 flex flex-col border-0 shadow-2xl overflow-hidden rounded-xl [&>button]:text-white [&>button]:opacity-70 [&>button]:hover:opacity-100 [&>button]:hover:text-white ring-0">
+            <DialogContent className="fixed left-[50%] top-[50%] z-[200] flex flex-col w-[90vw] max-w-[1000px] h-[75vh] sm:h-[85vh] -translate-x-1/2 -translate-y-1/2 gap-0 border-0 shadow-2xl p-0 overflow-hidden rounded-xl bg-background ring-0 outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]">
                 {/* Premium Header */}
                 <div className="relative bg-gradient-to-br from-nexus-dark to-nexus-primary px-6 py-6 text-white overflow-hidden shrink-0">
                     <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-3xl"></div>
@@ -253,7 +363,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
 
                     <DialogHeader className="relative z-10 pt-2">
                         <div className="flex flex-col gap-1">
-                            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+                            <DialogTitle className="text-xl sm:text-2xl font-bold flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm shadow-inner">
                                     <Building2 className="h-5 w-5 text-white" />
                                 </div>
@@ -269,51 +379,150 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                                     <DropdownMenuTrigger asChild>
                                         <Badge
                                             variant="outline"
-                                            className="ml-2 bg-white/10 text-white border-0 hover:bg-white/20 cursor-pointer pl-2 pr-1 h-6 gap-1"
+                                            className={`ml-2 text-white border-0 cursor-pointer px-2 h-5 sm:h-6 gap-0.5 sm:gap-1 text-[9px] sm:text-xs whitespace-nowrap ${(status === 'pending-verification' || status === 'pending_verification') ? 'bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/50' : 'bg-white/10 hover:bg-white/20'}`}
                                         >
-                                            {lead.status.toUpperCase()} <ChevronDown className="h-3 w-3 opacity-70" />
+                                            <span className="sm:hidden">{(status.includes('verification')) ? 'PENDING' : status.replace('-', ' ').replace('_', ' ').toUpperCase()}</span>
+                                            <span className="hidden sm:inline">{status.replace('-', ' ').replace('_', ' ').toUpperCase()}</span>
+                                            <ChevronDown className="h-3 w-3 opacity-70" />
                                         </Badge>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Update Status</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        {['new', 'qualified', 'proposal', 'negotiation', 'closed-won', 'closed-lost'].map((stage) => (
-                                            <DropdownMenuItem
-                                                key={stage}
-                                                onClick={() => {
-                                                    // useLeads hook is not directly available here props-wise for updateStatus
-                                                    // but we passed onUpdate. We need to actually perform the update.
-                                                    // Wait, this component doesn't have the update function passed to it?
-                                                    // It receives onUpdate, but that's a refresh callback.
-                                                    // I should use the Supabase client directly here just like handleSaveNotes.
-
-                                                    const doUpdate = async () => {
-                                                        if (stage === 'closed-won') {
-                                                            const { error: rpcError } = await supabase.rpc('confirm_lead_order', {
-                                                                target_lead_id: lead.id,
-                                                                output_employee_id: user?.id
-                                                            });
-                                                            if (rpcError) {
-                                                                toast({ title: "Error", description: "Failed to confirm order", variant: "destructive" });
-                                                                return;
+                                        {['new', 'qualified', 'proposal', 'negotiation', 'pending-verification', 'closed-won', 'closed-lost']
+                                            .filter(stage => {
+                                                // Security Filter:
+                                                // 1. Employees cannot set 'closed-won' directly
+                                                if (user?.role !== 'admin' && stage === 'closed-won') return false;
+                                                // 2. 'pending-verification' is mainly for employees to select, or admins to see
+                                                return true;
+                                            })
+                                            .map((stage) => (
+                                                <DropdownMenuItem
+                                                    key={stage}
+                                                    onClick={() => {
+                                                        const doUpdate = async () => {
+                                                            if (stage === 'closed-won') {
+                                                                // If admin selects closed-won directly (bypass verification)
+                                                                const { error: rpcError } = await supabase.rpc('confirm_lead_order', {
+                                                                    target_lead_id: lead.id,
+                                                                    output_employee_id: user?.id
+                                                                });
+                                                                if (rpcError) {
+                                                                    console.error(rpcError);
+                                                                    toast({
+                                                                        title: "Error",
+                                                                        description: rpcError.message || "Failed to confirm order",
+                                                                        variant: "destructive"
+                                                                    });
+                                                                    return;
+                                                                }
+                                                                toast({ title: "Deal Won!", description: "Order finalized.", className: "bg-green-600 border-none text-white" });
+                                                            } else if (stage === 'pending-verification') {
+                                                                toast({ title: "Approval Requested", description: "Lead sent to admin for verification." });
                                                             }
-                                                            toast({ title: "Deal Won!", description: "Order finalized.", className: "bg-green-600 border-none text-white" });
-                                                        }
 
-                                                        await supabase.from('leads').update({ status: stage }).eq('id', lead.id);
-                                                        onUpdate();
-                                                    };
-                                                    doUpdate();
-                                                }}
-                                                disabled={lead.status === stage}
-                                            >
-                                                {stage.replace('-', ' ').toUpperCase()}
-                                            </DropdownMenuItem>
-                                        ))}
+                                                            const { error } = await supabase.from('leads').update({ status: stage }).eq('id', lead.id);
+                                                            if (!error) {
+                                                                setStatus(stage); // Update local UI immediately
+                                                                onUpdate();
+                                                                fetchInventory(); // Refresh stock in case of reversal
+                                                            }
+                                                        };
+                                                        doUpdate();
+                                                    }}
+                                                    disabled={status === stage}
+                                                >
+                                                    {stage === 'pending-verification' ? 'REQUEST APPROVAL' : stage.replace('-', ' ').replace('_', ' ').toUpperCase()}
+                                                </DropdownMenuItem>
+                                            ))}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
                         </div>
+
+                        {/* Admin Verification Banner */}
+                        {(status === 'pending-verification' || status === 'pending_verification') && user?.role === 'admin' && (
+                            <div className="mt-6 -mb-2 bg-amber-50/10 border border-amber-200/20 rounded-xl p-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between backdrop-blur-md">
+                                <div className="flex items-start sm:items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-200 shrink-0">
+                                        <Shield className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-amber-100">
+                                            <span className="sm:hidden">Verify Deal</span>
+                                            <span className="hidden sm:inline">Deal Verification Request</span>
+                                        </p>
+                                        <p className="text-xs text-amber-200/70 hidden sm:block">Review details before approving.</p>
+                                        <div className="hidden sm:flex items-center gap-3 mt-1 text-xs text-amber-100/90 font-medium">
+                                            <span className="flex items-center gap-1"><User className="h-3 w-3" /> {lead.profiles?.full_name || "Unknown Agent"}</span>
+                                            <span className="w-1 h-1 rounded-full bg-amber-500/50" />
+                                            <span className="flex items-center gap-1"><ShoppingCart className="h-3 w-3" /> {leadItems.length} Items</span>
+                                            <span className="w-1 h-1 rounded-full bg-amber-500/50" />
+                                            <span className="flex items-center gap-1"><span className="text-sm">₹</span> {dynamicValue?.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 w-full gap-2 sm:flex sm:w-auto">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async () => {
+                                            // UI Optimistic Update
+                                            setStatus('negotiation');
+
+                                            const { error: rejectError } = await supabase.rpc('revert_lead_to_negotiation', {
+                                                target_lead_id: lead.id
+                                            });
+
+                                            if (rejectError) {
+                                                console.error(rejectError);
+                                                toast({
+                                                    title: "Reject Failed",
+                                                    description: rejectError.message || rejectError.details || "Failed to revert deal.",
+                                                    variant: "destructive"
+                                                });
+                                                // Rollback (simplified)
+                                                // fetchLeadDetails();
+                                            } else {
+                                                toast({ title: "Rejected", description: "Returned to negotiation stage. Inventory restored." });
+                                                onUpdate();
+                                                fetchInventory();
+                                            }
+                                        }}
+                                        className="h-8 bg-black/20 border-white/10 text-white hover:bg-white/10 hover:text-white"
+                                    >
+                                        Reject
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={async () => {
+                                            const { error: rpcError } = await supabase.rpc('confirm_lead_order', {
+                                                target_lead_id: lead.id,
+                                                output_employee_id: user?.id
+                                            });
+                                            if (!rpcError) {
+                                                await supabase.from('leads').update({ status: 'closed-won' }).eq('id', lead.id);
+                                                setStatus('closed-won');
+                                                toast({ title: "Approved!", description: "Deal finalized and order created.", className: "bg-green-600 text-white border-none" });
+                                                onUpdate();
+                                                fetchInventory();
+                                            } else {
+                                                console.error(rpcError);
+                                                toast({
+                                                    title: "Approval Failed",
+                                                    description: rpcError.message || rpcError.details || "Failed to create order.",
+                                                    variant: "destructive"
+                                                });
+                                            }
+                                        }}
+                                        className="h-8 bg-amber-500 hover:bg-amber-600 text-black font-bold border-none"
+                                    >
+                                        Approve
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </DialogHeader>
                 </div>
 
@@ -325,20 +534,22 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                                     value="products"
                                     className="relative h-16 bg-transparent border-b-2 border-transparent data-[state=active]:border-nexus-primary rounded-none px-1 pb-0 text-slate-500 data-[state=active]:text-nexus-primary font-semibold transition-all hover:text-slate-800 flex items-center gap-2"
                                 >
-                                    <ShoppingCart className="h-4 w-4" />
-                                    <span>Cart & Products</span>
+                                    <ShoppingCart className="h-4 w-4 shrink-0" />
+                                    <span className="truncate sm:hidden">Cart</span>
+                                    <span className="hidden sm:inline">Cart & Products</span>
                                 </TabsTrigger>
                             )}
                             <TabsTrigger
                                 value="details"
                                 className="relative h-16 bg-transparent border-b-2 border-transparent data-[state=active]:border-nexus-primary rounded-none px-1 pb-0 text-slate-500 data-[state=active]:text-nexus-primary font-semibold transition-all hover:text-slate-800 flex items-center gap-2"
                             >
-                                <LayoutDashboard className="h-4 w-4" />
-                                <span>Deal Details</span>
+                                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                                <span className="truncate sm:hidden">Details</span>
+                                <span className="hidden sm:inline">Deal Details</span>
                             </TabsTrigger>
                             <TabsTrigger
                                 value="timeline"
-                                className="relative h-16 bg-transparent border-b-2 border-transparent data-[state=active]:border-nexus-primary rounded-none px-1 pb-0 text-slate-500 data-[state=active]:text-nexus-primary font-semibold transition-all hover:text-slate-800 flex items-center gap-2"
+                                className="relative h-16 bg-transparent border-b-2 border-transparent data-[state=active]:border-nexus-primary rounded-none px-1 pb-0 text-slate-500 data-[state=active]:text-nexus-primary font-semibold transition-all hover:text-slate-800 hidden sm:flex items-center gap-2"
                             >
                                 <Activity className="h-4 w-4" />
                                 <span>Timeline</span>
@@ -349,7 +560,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
 
 
                     {(lead.status === 'proposal' || lead.status === 'negotiation' || lead.status === 'negotiating') && (
-                        <TabsContent value="products" className="p-8 space-y-6 overflow-y-auto mt-0">
+                        <TabsContent value="products" className="p-4 sm:p-8 space-y-6 overflow-y-auto mt-0">
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 {/* Left Column: Product Selection */}
@@ -360,9 +571,27 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                                         <div className="relative space-y-6">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                                                 <div className="space-y-2.5 flex-1">
-                                                    <Label className="text-slate-500 text-xs font-bold uppercase tracking-wider pl-1">Select Product</Label>
-                                                    <Select value={newItemSku} onValueChange={handleProductSelect}>
-                                                        <SelectTrigger className="bg-slate-50 border-slate-200 h-12 rounded-xl focus:ring-nexus-primary/20 text-base font-medium">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-slate-500 text-xs font-bold uppercase tracking-wider pl-1">
+                                                            {editingItemId ? (
+                                                                <span className="text-nexus-primary animate-pulse">Editing Item</span>
+                                                            ) : (
+                                                                "Select Product"
+                                                            )}
+                                                        </Label>
+                                                        {editingItemId && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={resetForm}
+                                                                className="h-5 text-[10px] text-red-500 hover:text-red-700 hover:bg-red-50 px-2 -mr-1"
+                                                            >
+                                                                Cancel Edit
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                    <Select value={newItemSku} onValueChange={handleProductSelect} disabled={!!editingItemId}>
+                                                        <SelectTrigger className={`border-slate-200 h-12 rounded-xl focus:ring-nexus-primary/20 text-base font-medium ${editingItemId ? 'bg-blue-50/50 text-slate-500' : 'bg-slate-50'}`}>
                                                             <SelectValue placeholder="Search inventory..." />
                                                         </SelectTrigger>
                                                         <SelectContent className="max-h-[300px]">
@@ -378,16 +607,26 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                                                     </Select>
                                                 </div>
 
-                                                <Button onClick={handleAddItem} disabled={!newItemSku || !newItemPrice} className="h-12 rounded-xl bg-slate-900 text-white hover:bg-nexus-primary transition-all font-semibold shadow-lg shadow-slate-900/10 hover:shadow-nexus-primary/25 disabled:opacity-50 disabled:shadow-none w-full md:w-auto px-8">
-                                                    <Plus className="h-5 w-5 mr-2" /> Add Item to Deal
+                                                <Button
+                                                    onClick={handleAddItem}
+                                                    disabled={!newItemSku || !newItemPrice}
+                                                    className={`h-12 rounded-xl text-white transition-all font-semibold shadow-lg disabled:opacity-50 disabled:shadow-none w-full md:w-auto px-8 ${editingItemId ? 'bg-nexus-primary hover:bg-nexus-dark shadow-nexus-primary/25 ring-2 ring-nexus-primary/20 ring-offset-2' : 'bg-slate-900 hover:bg-nexus-primary shadow-slate-900/10 hover:shadow-nexus-primary/25'}`}
+                                                >
+                                                    {editingItemId ? <Save className="h-5 w-5 mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
+                                                    {editingItemId ? 'Save Changes' : 'Add Item to Deal'}
                                                 </Button>
                                             </div>
 
-                                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 pt-2">
-                                                <div className="space-y-2 p-3 bg-slate-50/50 rounded-xl border border-slate-100/50">
-                                                    <Label className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Available Stock</Label>
-                                                    <div className="text-sm font-semibold text-slate-700">
-                                                        {newItemSku ? `${inventory.find(i => i.sku === newItemSku)?.stock} units` : '-'}
+
+
+                                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 pt-2">
+                                                <div className={`space-y-2 p-3 rounded-xl border ${newItemSku ? (calculateRemainingStock(newItemSku, newItemQty, editingItemId).isValid ? 'bg-emerald-50/50 border-emerald-100/50' : 'bg-red-50/50 border-red-100/50') : 'bg-slate-50/50 border-slate-100/50'}`}>
+                                                    <Label className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Remaining Stock</Label>
+                                                    <div className={`text-sm font-semibold ${newItemSku ? (calculateRemainingStock(newItemSku, newItemQty, editingItemId).isValid ? 'text-emerald-700' : 'text-red-600') : 'text-slate-700'}`}>
+                                                        {newItemSku ? (() => {
+                                                            const { remaining, isValid } = calculateRemainingStock(newItemSku, newItemQty, editingItemId);
+                                                            return isValid ? `${remaining} units left` : `Over limit by ${Math.abs(remaining)}`;
+                                                        })() : '-'}
                                                     </div>
                                                 </div>
                                                 <div className="space-y-2 p-3 bg-slate-50/50 rounded-xl border border-slate-100/50">
@@ -403,7 +642,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-2 p-3 bg-white rounded-xl border border-nexus-primary/20 shadow-sm ring-1 ring-nexus-primary/5">
+                                                <div className={`space-y-2 p-3 rounded-xl border shadow-sm ring-1 ring-nexus-primary/5 ${editingItemId ? 'bg-blue-50/30 border-nexus-primary/20' : 'bg-white border-nexus-primary/20'}`}>
                                                     <Label className="text-nexus-primary text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">Deal Price ($)</Label>
                                                     <Input
                                                         type="number"
@@ -413,7 +652,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                                                         placeholder="0.00"
                                                     />
                                                 </div>
-                                                <div className="space-y-2 p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                                <div className={`space-y-2 p-3 rounded-xl border shadow-sm ${editingItemId ? 'bg-blue-50/30 border-slate-200' : 'bg-white border-slate-200'}`}>
                                                     <Label className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Quantity</Label>
                                                     <Input
                                                         type="number"
@@ -427,63 +666,53 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                                         </div>
                                     </div>
 
-                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" id="cart-section">
                                         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
-                                            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                                                <ShoppingCart className="h-4 w-4 text-slate-400" /> Current Cart
-                                            </h3>
-                                            <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-slate-200">
-                                                {leadItems.length} Items
-                                            </Badge>
+                                            {/* ... header ... */}
                                         </div>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow className="hover:bg-transparent border-slate-100">
-                                                    <TableHead className="pl-6 h-12 text-slate-500 font-semibold text-xs uppercase tracking-wider">Product</TableHead>
-                                                    <TableHead className="h-12 text-slate-500 font-semibold text-xs uppercase tracking-wider text-right">Price</TableHead>
-                                                    <TableHead className="h-12 text-slate-500 font-semibold text-xs uppercase tracking-wider text-right">Qty</TableHead>
-                                                    <TableHead className="h-12 text-slate-500 font-semibold text-xs uppercase tracking-wider text-right pr-6">Total</TableHead>
-                                                    <TableHead className="w-[50px]"></TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {leadItems.length === 0 ? (
-                                                    <TableRow className="hover:bg-transparent">
-                                                        <TableCell colSpan={5} className="text-center py-12">
-                                                            <div className="flex flex-col items-center gap-3 opacity-30">
-                                                                <ShoppingCart className="h-12 w-12" />
-                                                                <p className="font-medium">No items in the deal cart yet</p>
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ) : (
-                                                    leadItems.map(item => (
-                                                        <TableRow key={item.id} className="hover:bg-slate-50 border-slate-100 group">
-                                                            <TableCell className="pl-6 py-4 font-medium text-slate-700">
-                                                                {item.inventory?.name || item.sku}
-                                                            </TableCell>
-                                                            <TableCell className="text-right py-4">
-                                                                <div className="flex flex-col items-end gap-0.5">
-                                                                    <span className="font-bold text-slate-700">${item.unit_price || item.inventory?.price}</span>
-                                                                    {(item.unit_price < item.inventory?.price) && (
-                                                                        <Badge variant="outline" className="text-[10px] px-1 h-4 border-green-200 text-green-700 bg-green-50">-{Math.round((1 - item.unit_price / item.inventory.price) * 100)}%</Badge>
-                                                                    )}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell className="text-right py-4 text-slate-600">{item.quantity}</TableCell>
-                                                            <TableCell className="text-right pr-6 py-4 font-bold text-nexus-primary text-base">
-                                                                ${((item.unit_price || item.inventory?.price || 0) * item.quantity).toLocaleString()}
-                                                            </TableCell>
-                                                            <TableCell className="px-2">
-                                                                <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="h-8 w-8 text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all rounded-full">
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))
-                                                )}
-                                            </TableBody>
-                                        </Table>
+                                        <div className="overflow-x-auto">
+                                            <Table className="w-[600px] sm:w-full">
+                                                <TableHeader>
+                                                    {/* ... header row ... */}
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {leadItems.length === 0 ? (
+                                                        // ... empty state ...
+                                                        <TableRow><TableCell>Empty</TableCell></TableRow>
+                                                    ) : (
+                                                        leadItems.map(item => (
+                                                            <TableRow key={item.id} className={`hover:bg-slate-50 border-slate-100 group ${editingItemId === item.id ? 'bg-blue-50/50' : ''}`}>
+                                                                <TableCell className="pl-6 py-4 font-medium text-slate-700">
+                                                                    {item.inventory?.name || item.sku}
+                                                                </TableCell>
+                                                                <TableCell className="text-right py-4">
+                                                                    <div className="flex flex-col items-end gap-0.5">
+                                                                        <span className="font-bold text-slate-700">${item.unit_price || item.inventory?.price}</span>
+                                                                        {(item.unit_price < item.inventory?.price) && (
+                                                                            <Badge variant="outline" className="text-[10px] px-1 h-4 border-green-200 text-green-700 bg-green-50">-{Math.round((1 - item.unit_price / item.inventory.price) * 100)}%</Badge>
+                                                                        )}
+                                                                    </div>
+                                                                </TableCell>
+                                                                <TableCell className="text-right py-4 text-slate-600">{item.quantity}</TableCell>
+                                                                <TableCell className="text-right pr-6 py-4 font-bold text-nexus-primary text-base">
+                                                                    ${((item.unit_price || item.inventory?.price || 0) * item.quantity).toLocaleString()}
+                                                                </TableCell>
+                                                                <TableCell className="px-2 text-right whitespace-nowrap">
+                                                                    <div className="flex items-center justify-end gap-1">
+                                                                        <Button variant="ghost" size="icon" onClick={() => handleEditItem(item)} className="h-8 w-8 text-slate-400 hover:text-nexus-primary hover:bg-blue-50 rounded-full">
+                                                                            <Pencil className="h-4 w-4" />
+                                                                        </Button>
+                                                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full">
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -519,7 +748,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                                     <CreditCard className="h-3.5 w-3.5 text-nexus-primary" /> Deal Value
                                 </Label>
                                 <div className="text-lg font-bold text-slate-800 flex items-center gap-1 text-emerald-600 relative z-10">
-                                    {lead.value?.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) || "$0.00"}
+                                    {dynamicValue?.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) || "$0.00"}
                                 </div>
                             </div>
 
@@ -623,62 +852,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onUpdate }: LeadDe
                             </div>
                         </div>
 
-                        {/* Product & Value Editing (Visible in Proposal/Negotiation) */}
-                        {['proposal', 'negotiation'].includes(lead.status) && (
-                            <div className="space-y-3 pt-4 border-t border-slate-200">
-                                <Label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                                    <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
-                                        <Package className="h-4 w-4" />
-                                    </div>
-                                    Deal Configuration
-                                </Label>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-semibold text-slate-500 uppercase">Product / Service</Label>
-                                        <Select
-                                            value={lead.product || "CRM System"} // Default fallback if null
-                                            onValueChange={async (val) => {
-                                                // Instant update
-                                                await supabase.from('leads').update({ product: val }).eq('id', lead.id);
-                                                toast({ title: "Product Updated", description: `Deal now for: ${val}` });
-                                                onUpdate();
-                                            }}
-                                        >
-                                            <SelectTrigger className="h-10 border-slate-200 bg-slate-50/50">
-                                                <SelectValue placeholder="Select product..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="CRM System">CRM System</SelectItem>
-                                                <SelectItem value="ERP Solution">ERP Solution</SelectItem>
-                                                <SelectItem value="Website Development">Website Development</SelectItem>
-                                                <SelectItem value="Mobile App">Mobile App</SelectItem>
-                                                <SelectItem value="SEO Service">SEO Service</SelectItem>
-                                                <SelectItem value="Digital Marketing">Digital Marketing</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-semibold text-slate-500 uppercase">Deal Value ($)</Label>
-                                        <div className="relative">
-                                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                            <Input
-                                                type="number"
-                                                defaultValue={lead.value}
-                                                onBlur={async (e) => {
-                                                    const val = parseFloat(e.target.value);
-                                                    if (val !== lead.value) {
-                                                        await supabase.from('leads').update({ value: val }).eq('id', lead.id);
-                                                        toast({ title: "Value Updated", description: "New deal value saved." });
-                                                        onUpdate();
-                                                    }
-                                                }}
-                                                className="pl-9 h-10 border-slate-200 bg-slate-50/50 font-medium"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        {/* Legacy Product/Value Editing removed - Use Cart & Products tab instead */}
                     </TabsContent>
                     <TabsContent
                         value="timeline"

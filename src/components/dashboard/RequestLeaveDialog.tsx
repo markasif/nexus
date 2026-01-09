@@ -15,17 +15,34 @@ import { Calendar as CalendarIcon, Loader2, Send, FilePlus, Sparkles } from "luc
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 export function RequestLeaveDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        type: "vacation",
+        type: "casual",
         startDate: "",
         endDate: "",
         reason: ""
     });
+
+    // Calculate days
+    const calculateDays = (start: string, end: string) => {
+        if (!start || !end) return 1;
+        const s = new Date(start);
+        const e = new Date(end);
+        const diffTime = Math.abs(e.getTime() - s.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return diffDays > 0 ? diffDays : 1;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,6 +50,8 @@ export function RequestLeaveDialog({ open, onOpenChange }: { open: boolean; onOp
 
         try {
             if (!user) throw new Error("Not authenticated");
+
+            const days = calculateDays(formData.startDate, formData.endDate);
 
             const { error } = await supabase
                 .from('leaves')
@@ -42,19 +61,20 @@ export function RequestLeaveDialog({ open, onOpenChange }: { open: boolean; onOp
                     start_date: formData.startDate,
                     end_date: formData.endDate,
                     reason: formData.reason,
-                    status: 'pending'
+                    status: 'pending',
+                    days: days
                 });
 
             if (error) throw error;
 
             toast({
                 title: "Request Sent",
-                description: "Your leave request has been submitted for approval.",
+                description: `Your request for ${days} day(s) has been submitted.`,
                 variant: "default",
             });
 
             onOpenChange(false);
-            setFormData({ type: "vacation", startDate: "", endDate: "", reason: "" });
+            setFormData({ type: "casual", startDate: "", endDate: "", reason: "" });
 
         } catch (error: any) {
             console.error("Error submitting leave:", error);
@@ -70,7 +90,7 @@ export function RequestLeaveDialog({ open, onOpenChange }: { open: boolean; onOp
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden gap-0 border-0 shadow-2xl">
+            <DialogContent className="fixed left-[5vw] top-[40%] z-[200] grid w-[90vw] translate-x-0 gap-0 border-0 p-0 shadow-2xl overflow-hidden rounded-xl bg-background outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-[5%] data-[state=closed]:slide-out-to-top-[30%] data-[state=open]:slide-in-from-left-[5%] data-[state=open]:slide-in-from-top-[30%] max-h-[60vh] overflow-y-auto sm:fixed sm:left-[50%] sm:top-[50%] sm:z-50 sm:grid sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:gap-4 sm:border-0 sm:bg-background sm:p-0 sm:shadow-2xl sm:duration-200 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%] sm:rounded-xl sm:max-h-none sm:overflow-visible">
                 {/* Premium Header */}
                 <div className="relative bg-gradient-to-br from-nexus-dark to-nexus-primary px-6 py-6 text-white overflow-hidden">
                     <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
@@ -90,47 +110,92 @@ export function RequestLeaveDialog({ open, onOpenChange }: { open: boolean; onOp
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-5 bg-background">
+
+
                     <div className="space-y-2">
                         <Label htmlFor="type" className="text-sm font-medium text-foreground/80">Leave Type</Label>
-                        <select
-                            id="type"
+                        <Select
                             value={formData.type}
-                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                            className="flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                            onValueChange={(value) => setFormData({ ...formData, type: value })}
                         >
-                            <option value="vacation">Vacation</option>
-                            <option value="sick">Sick Leave</option>
-                            <option value="personal">Personal</option>
-                            <option value="other">Other</option>
-                        </select>
+                            <SelectTrigger className="w-full h-10 bg-card border-input">
+                                <SelectValue placeholder="Select leave type" />
+                            </SelectTrigger>
+                            <SelectContent className="z-[300]">
+                                <SelectItem value="casual">Casual Leave</SelectItem>
+                                <SelectItem value="sick">Sick Leave</SelectItem>
+                                <SelectItem value="privilege">Privilege Leave</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-5">
                         <div className="space-y-2">
                             <Label htmlFor="start" className="text-sm font-medium text-foreground/80">Start Date</Label>
-                            <div className="relative">
-                                <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                            {/* Mobile Date Picker (Overlay) */}
+                            <div className="relative h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-primary/20 sm:hidden">
+                                <div className="flex items-center gap-2 h-full text-muted-foreground">
+                                    <CalendarIcon className="h-4 w-4 shrink-0" />
+                                    <span className={formData.startDate ? "text-foreground" : ""}>
+                                        {formData.startDate || "Select date"}
+                                    </span>
+                                </div>
+                                <Input
+                                    type="date"
+                                    required
+                                    value={formData.startDate}
+                                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                    className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+                                />
+                            </div>
+
+                            {/* Desktop Date Picker (Standard) */}
+                            <div className="relative hidden sm:block">
+                                <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                                 <Input
                                     id="start"
                                     type="date"
                                     required
                                     value={formData.startDate}
                                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                                    className="pl-9 bg-card border-input focus-visible:ring-primary/20 rounded-lg"
+                                    onClick={(e) => e.currentTarget.showPicker()}
+                                    className="pl-9 bg-card border-input focus-visible:ring-primary/20 rounded-lg cursor-pointer"
                                 />
                             </div>
                         </div>
+
                         <div className="space-y-2">
                             <Label htmlFor="end" className="text-sm font-medium text-foreground/80">End Date</Label>
-                            <div className="relative">
-                                <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                            {/* Mobile Date Picker (Overlay) */}
+                            <div className="relative h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-primary/20 sm:hidden">
+                                <div className="flex items-center gap-2 h-full text-muted-foreground">
+                                    <CalendarIcon className="h-4 w-4 shrink-0" />
+                                    <span className={formData.endDate ? "text-foreground" : ""}>
+                                        {formData.endDate || "Select date"}
+                                    </span>
+                                </div>
+                                <Input
+                                    type="date"
+                                    required
+                                    value={formData.endDate}
+                                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                    className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+                                />
+                            </div>
+
+                            {/* Desktop Date Picker (Standard) */}
+                            <div className="relative hidden sm:block">
+                                <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                                 <Input
                                     id="end"
                                     type="date"
                                     required
                                     value={formData.endDate}
                                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                                    className="pl-9 bg-card border-input focus-visible:ring-primary/20 rounded-lg"
+                                    onClick={(e) => e.currentTarget.showPicker()}
+                                    className="pl-9 bg-card border-input focus-visible:ring-primary/20 rounded-lg cursor-pointer"
                                 />
                             </div>
                         </div>
